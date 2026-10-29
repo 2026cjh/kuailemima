@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">红蓝</string>
-    <string name="title_activity_main">红蓝</string>
+    <string name="app_name">快乐密码</string>
+    <string name="title_activity_main">快乐密码</string>
     <string name="package_name">com.cjh.hongbo</string>
     <string name="custom_url_scheme">com.cjh.hongbo</string>
 </resources>

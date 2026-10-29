@@ -80,19 +80,19 @@ jobs:
 
       - name: 整理安装包
         run: |
-          if [ "$SIGN" = "1" ]; then cp android/app/build/outputs/apk/release/app-release.apk "honglan-1.0.${{ github.run_number }}.apk"
-          else cp android/app/build/outputs/apk/debug/app-debug.apk "honglan-1.0.${{ github.run_number }}-debug.apk"; fi
+          if [ "$SIGN" = "1" ]; then cp android/app/build/outputs/apk/release/app-release.apk "kuailemima-1.0.${{ github.run_number }}.apk"
+          else cp android/app/build/outputs/apk/debug/app-debug.apk "kuailemima-1.0.${{ github.run_number }}-debug.apk"; fi
 
       - uses: actions/upload-artifact@v4
         with:
-          name: honglan-apk
-          path: honglan-*.apk
+          name: kuailemima-apk
+          path: kuailemima-*.apk
 
       - name: 发布到 Releases
         if: env.SIGN == '1'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
-          name: 红蓝 1.0.${{ github.run_number }}
+          name: 快乐密码 1.0.${{ github.run_number }}
           body: 安卓安装包，下载后在手机上打开安装。
-          files: honglan-1.0.${{ github.run_number }}.apk
+          files: kuailemima-1.0.${{ github.run_number }}.apk

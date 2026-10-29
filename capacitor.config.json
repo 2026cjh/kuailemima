@@ -1,6 +1,6 @@
 {
   "appId": "com.cjh.hongbo",
-  "appName": "红蓝",
+  "appName": "快乐密码",
   "webDir": "www",
   "android": {
     "adjustMarginsForEdgeToEdge": "force",

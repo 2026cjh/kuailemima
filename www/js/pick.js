@@ -1,4 +1,4 @@
-/* 红蓝 · 选号 */
+/* 快乐密码 · 选号 */
 (function () {
 'use strict';
 const LT = window.LT, U = window.U, App = window.App, S = window.S, HB = window.HB;

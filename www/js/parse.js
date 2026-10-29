@@ -1,4 +1,4 @@
-/* 红蓝 · 官网开奖数据解析（App 和后台对奖脚本共用） */
+/* 快乐密码 · 官网开奖数据解析（App 和后台对奖脚本共用） */
 (function (root) {
 'use strict';
 const LT = root.LT;

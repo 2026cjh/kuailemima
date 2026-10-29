@@ -1,7 +1,7 @@
 """生成图标预览图 design/logo_preview.png（桌面圆角方形、圆形、通知栏小图标）"""
 import sys, subprocess
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-NAME = '红蓝'
+NAME = '快乐密码'
 font = subprocess.run(['fc-match', '-f', '%{file}', 'Noto Sans CJK SC'], capture_output=True, text=True).stdout.strip()
 src = Image.open('design/icon_full.png').convert('RGBA')
 W, H = 1200, 620

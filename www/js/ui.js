@@ -1,4 +1,4 @@
-/* 红蓝 · 界面公共部件 */
+/* 快乐密码 · 界面公共部件 */
 (function () {
 'use strict';
 const LT = window.LT;

@@ -1,4 +1,4 @@
-/* 红蓝 · 对奖：拍票识别 + 手动输入 */
+/* 快乐密码 · 对奖：拍票识别 + 手动输入 */
 (function () {
 'use strict';
 const LT = window.LT, U = window.U, App = window.App, S = window.S, HB = window.HB;
