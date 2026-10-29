@@ -1,6 +1,6 @@
 {
   "appId": "com.cjh.hongbo",
-  "appName": "红蓝选号簿",
+  "appName": "红蓝",
   "webDir": "www",
   "android": {
     "adjustMarginsForEdgeToEdge": "force",

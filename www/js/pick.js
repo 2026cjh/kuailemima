@@ -1,4 +1,4 @@
-/* 红蓝选号簿 · 选号 */
+/* 红蓝 · 选号 */
 (function () {
 'use strict';
 const LT = window.LT, U = window.U, App = window.App, S = window.S, HB = window.HB;

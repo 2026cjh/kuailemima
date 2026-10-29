@@ -1,4 +1,4 @@
-/* 红蓝选号簿 · 后台对奖
+/* 红蓝 · 后台对奖
  * 由系统每半小时唤醒一次（Capacitor Background Runner）。只在某个关注的彩种"应该已经开奖但还没拿到号码"时才联网，
  * 拿到新一期就推送开奖号码，并给存着的票对奖。 */
 var LT = globalThis.LT, P = globalThis.PARSE;

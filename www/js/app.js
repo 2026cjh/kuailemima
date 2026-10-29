@@ -1,4 +1,4 @@
-/* 红蓝选号簿 · 主程序：状态、导航、开奖、详情、我的、设置、提醒 */
+/* 红蓝 · 主程序：状态、导航、开奖、详情、我的、设置、提醒 */
 (function () {
 'use strict';
 const LT = window.LT, U = window.U, HB = window.HB;
@@ -264,7 +264,7 @@ App.pages.settings = () => {
     ${S.diag ? `<div class="rawtext">${esc(Object.entries(HB.Data.lastRaw).map(([k, v]) => `[${k}] ${v.status} ${new Date(v.at).toLocaleTimeString()}\n${v.url}\n${v.text}`).join('\n\n') || '还没有请求记录。点"全部重新获取"后再看。')}</div>` : ''}</div>`;
   h += `<div class="sec-title">关于</div><div class="glass card"><p class="small">每一期开奖都是独立随机的，这里的任何选号方式中奖概率都和机选一样，图个乐趣。理性购彩，量力而行。</p>
     <p class="small muted">开奖数据来自中国福彩网（双色球、福彩3D、快乐8、七乐彩）和中国体彩网（大乐透、排列3、排列5、七星彩）。兑奖以官方公告为准。</p>
-    <p class="tiny faint">红蓝选号簿 ${esc(window.APP_VERSION || '')}</p></div>`;
+    <p class="tiny faint">红蓝 ${esc(window.APP_VERSION || '')}</p></div>`;
   return h + '</div>';
 };
 function dayText(g) { const d = LT.GAMES[g].days; if (d.length === 7) return '每天'; return '每周' + d.slice().sort((a, b) => (a || 7) - (b || 7)).map(x => '日一二三四五六'[x]).join('、'); }
@@ -294,7 +294,7 @@ App.acts.winalert = async () => { S.settings.winAlert = !S.settings.winAlert; Ap
 App.acts.testnotif = async () => {
   if (!isNative) return U.toast('装到手机上才能发通知');
   if (!(await notifAllowed(true))) return U.toast('没有通知权限，到系统设置里允许本应用发通知');
-  try { await plugin('LocalNotifications').schedule({ notifications: [{ id: 9001, title: '红蓝选号簿', body: '通知正常。开奖后会在这里推送号码。', schedule: { at: new Date(Date.now() + 1500), allowWhileIdle: true } }] }); U.toast('1 秒后会收到一条通知'); }
+  try { await plugin('LocalNotifications').schedule({ notifications: [{ id: 9001, title: '红蓝', body: '通知正常。开奖后会在这里推送号码。', schedule: { at: new Date(Date.now() + 1500), allowWhileIdle: true } }] }); U.toast('1 秒后会收到一条通知'); }
   catch (e) { U.toast('发送失败：' + (e.message || e)); }
 };
 App.acts.runnow = async () => {

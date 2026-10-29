@@ -1,4 +1,4 @@
-/* 红蓝选号簿 · 界面公共部件 */
+/* 红蓝 · 界面公共部件 */
 (function () {
 'use strict';
 const LT = window.LT;

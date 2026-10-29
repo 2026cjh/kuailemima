@@ -1,5 +1,5 @@
 /* 自动生成：tools/prepare.js，请改 runner/runner-src.js */
-/* 红蓝选号簿 · 彩种规则与选号算法
+/* 红蓝 · 彩种规则与选号算法
  * 纯函数，不依赖页面。App、后台对奖脚本和单元测试共用这一份。
  * 奖级按 2026 年 2 月起执行的新规则（双色球福运奖、大乐透 8 亿加奖、一等奖封顶 1 亿）。
  */
@@ -493,7 +493,7 @@ root.LT = API;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
 ;
-/* 红蓝选号簿 · 官网开奖数据解析（App 和后台对奖脚本共用） */
+/* 红蓝 · 官网开奖数据解析（App 和后台对奖脚本共用） */
 (function (root) {
 'use strict';
 const LT = root.LT;
@@ -567,7 +567,7 @@ root.PARSE = { UA, H_CWL, H_TC, H_CDN, cwlUrl, tcUrl, CDN, numOf, parseCwl, pars
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
 ;
-/* 红蓝选号簿 · 后台对奖
+/* 红蓝 · 后台对奖
  * 由系统每半小时唤醒一次（Capacitor Background Runner）。只在某个关注的彩种"应该已经开奖但还没拿到号码"时才联网，
  * 拿到新一期就推送开奖号码，并给存着的票对奖。 */
 var LT = globalThis.LT, P = globalThis.PARSE;
