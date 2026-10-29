@@ -72,10 +72,10 @@ const fakeDraws=(g,n)=>{const G=LT.GAMES[g];const out=[];for(let i=0;i<n;i++){le
   if(G.kind==='lotto'||G.kind==='keno'){N=LT.asc(LT.range(G.main.min,G.main.max).sort(()=>Math.random()-0.5).slice(0,G.main.n));S=G.sub?LT.range(G.sub.min,G.sub.max).sort(()=>Math.random()-0.5).slice(0,G.sub.n):(G.special?[1]:[]);}
   else {N=LT.range(1,G.len).map(()=>Math.floor(Math.random()*10)); if(G.kind==='qxc')S=[Math.floor(Math.random()*15)];}
   out.push({code:String(2026001+i),date:'2026-01-01',n:N,s:S});} return out;};
-const people=[{y:1973,m:6,d:15},{y:2004,m:3,d:9}]; let bad=0;
+const people=[{y:1985,m:6,d:15},{y:1996,m:3,d:9}]; let bad=0;
 for(const g of LT.ORDER){ const G=LT.GAMES[g]; const dr=fakeDraws(g,120); const st=LT.stats(g,dr,50);
   for(const m of LT.METHODS){ for(let i=0;i<40;i++){
-    const o={method:m.id,st,draws:dr,birthdays:people,zodiac:'双子座',bz:LT.bazi(1973,6,15,10),words:'全家平安'+i,avoid:true,k:1+(i%10),play:G.plays?G.plays[i%G.plays.length]:undefined};
+    const o={method:m.id,st,draws:dr,birthdays:people,zodiac:'双子座',bz:LT.bazi(1985,6,15,10),words:'全家平安'+i,avoid:true,k:1+(i%10),play:G.plays?G.plays[i%G.plays.length]:undefined};
     if(G.kind==='lotto'&&i%3===0)o.lock={f:[G.main.min+1],b:G.sub?[G.sub.min]:[]};
     if((G.kind==='digit'||G.kind==='qxc')&&i%4===0)o.lock={pos:[7]};
     const list=LT.generate(g,o,3);

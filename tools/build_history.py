@@ -1,7 +1,9 @@
 """把多个来源的双色球/大乐透历史合并成 App 内置数据：www/data/{ssq,dlt}.json
 每行：[期号, 日期, 前区..., 后区..., 奖池(亿), 销售额(元), 一等奖注数, 一等奖单注, 二等奖注数, 二等奖单注]"""
 import json, glob, datetime, sys
-R='/home/claude/repos/'; D='/home/claude/data_dl2/'
+import os
+# 数据来源仓库和下载文件所在目录，用环境变量指定
+R=os.environ.get('SRC_REPOS','sources/repos/')+'/'; D=os.environ.get('SRC_DL','sources/downloads/')+'/'
 def norm(c): c=str(c); return c if len(c)==7 else '20'+c
 out={}
 for g,nf,nb in (('ssq',6,1),('dlt',5,2)):

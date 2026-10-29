@@ -11,7 +11,7 @@
 每期开奖独立随机，任何选号方式的中奖概率都和机选一样。理性购彩。
 
 ## 编译
-推送到 main 分支后，GitHub Actions 自动编译，安装包在 Releases 里。签名证书的密码放在仓库的 Actions Secret（KEYSTORE_PASSWORD）里；证书在第一次编译时由 GitHub 生成，用这个密码加密。
+推送到 main 分支后，GitHub Actions 自动编译，安装包在 Releases 里。签名证书和密码放在仓库的加密 Actions Secrets（KEYSTORE_BASE64、KEYSTORE_PASSWORD）里，不在代码里。
 
 ## 目录
 - `www/` 页面和全部逻辑（`js/games.js` 彩种规则、`js/data.js` 开奖数据、`js/ocr.js` 票面解析）

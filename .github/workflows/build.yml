@@ -19,8 +19,6 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -50,26 +48,18 @@ jobs:
           SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKM" --licenses > /dev/null || true
 
-      - name: 签名证书（密码来自仓库加密 Secret：KEYSTORE_PASSWORD）
+      - name: 签名证书（来自仓库加密 Secrets：KEYSTORE_BASE64、KEYSTORE_PASSWORD）
         env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           set -euo pipefail
-          if [ -z "$KEYSTORE_PASSWORD" ]; then
-            echo "::warning::还没有设置 KEYSTORE_PASSWORD，这次只编译测试版（debug）"
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::warning::没有签名证书 Secrets，这次只编译测试版（debug）"
             echo "SIGN=0" >> $GITHUB_ENV; exit 0
           fi
-          if [ ! -f android/app/hongbo-release.jks ]; then
-            keytool -genkeypair -keystore android/app/hongbo-release.jks -alias hongbo -keyalg RSA -keysize 2048 -validity 36500 \
-              -storepass "$KEYSTORE_PASSWORD" -keypass "$KEYSTORE_PASSWORD" -dname "CN=Hongbo Xuanhao, O=Personal, C=CN" -storetype PKCS12
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -f android/app/hongbo-release.jks
-            git commit -m "生成签名证书（已用仓库 Secret 加密）"
-            git push origin HEAD:main
-            echo "签名证书已保存到仓库"
-          fi
-          printf "storeFile=hongbo-release.jks\nstorePassword=%s\nkeyAlias=hongbo\nkeyPassword=%s\n" "$KEYSTORE_PASSWORD" "$KEYSTORE_PASSWORD" > android/keystore.properties
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/release.jks
+          printf "storeFile=release.jks\nstorePassword=%s\nkeyAlias=hongbo\nkeyPassword=%s\n" "$KEYSTORE_PASSWORD" "$KEYSTORE_PASSWORD" > android/keystore.properties
           echo "SIGN=1" >> $GITHUB_ENV
 
       - name: 编译
