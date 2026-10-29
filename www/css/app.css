@@ -326,3 +326,5 @@ table.trend tbody tr:nth-child(5n) td{border-bottom-color:color-mix(in srgb,var(
 a.btn{text-decoration:none}
 .upd{border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
 .upd b{font-size:16px}
+.linkbtn{color:var(--accent);font-weight:600;padding:6px 0;justify-self:center;background:none}
+.recent{text-align:left;padding:12px 14px}

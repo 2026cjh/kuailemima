@@ -46,28 +46,28 @@ function editorGrid(g, m) {
 
 function scanNote(m, tk) {
   const sc = m.scan, G = LT.GAMES[m.g]; let h = '';
-  const bits = [`<b>${G.name}</b>`]; if (m.issue) bits.push(`第 ${esc(LT.issueShort(m.g, m.issue))} 期`); bits.push(`${m.lines.length} 行号码`); if (m.mult > 1) bits.push(`${m.mult} 倍`);
-  h += `<div class="row">${sc.img ? `<img class="thumb" src="${esc(sc.img)}" alt="彩票照片">` : ''}<p class="small grow">认出：${bits.join(' · ')}<br><span class="muted">和票面对一下，有错就删掉那行重新点。</span></p></div>`;
-  if (sc.how === 'guess' || sc.how === 'hint') h += `<p class="note warn">票面上的彩种名字没认出来，${sc.how === 'hint' ? '按票上的彩票中心字样和号码' : '按号码的样子'}判断是<b>${G.name}</b>。不对的话点上面的彩种，按那个彩种重新读。</p>`;
+  if (sc.how === 'guess' || sc.how === 'hint') h += `<p class="note warn">票面上的彩种名字没认出来，${sc.how === 'hint' ? '按票上的彩票中心字样和号码' : '按号码的样子'}判断是<b>${G.name}</b>。不对的话点「识别有误？修改」换彩种。</p>`;
   if (sc.amount != null && m.lines.length) { const cost = LT.ticketCost(tk);
-    if (Math.abs(cost - sc.amount) > 0.01) h += `<p class="note warn">票面金额 ${sc.amount} 元，按认出的号码和倍数算是 ${cost} 元，对不上，可能有号码或倍数认错了，请核对。</p>`; }
+    if (Math.abs(cost - sc.amount) > 0.01) h += `<p class="note warn">票面金额 ${sc.amount} 元，按认出的号码和倍数算是 ${cost} 元，对不上，可能有号码或倍数认错了，点「识别有误？修改」核对。</p>`; }
   if (sc.notes && sc.notes.length) h += `<p class="tiny faint">没认出的行：${esc(sc.notes.slice(0, 3).join(' / '))}</p>`;
   return h;
 }
-function editorHTML() {
+
+// fix=true：修改拍票识别出的内容（结果显示在上面的结果卡里）；否则是手动输入
+function editorHTML(fix) {
   const m = man(), g = m.g, G = LT.GAMES[g]; const c = m.cur; const n = LT.lineBets(g, c); const issue = LT.lineIssues(g, c);
   const tk = { game: g, issue: m.issue, lines: m.lines, mult: m.mult, add: m.add, drawDate: m.drawDate };
-  let h = `<div class="glass card" id="editor"><div class="card-head"><h2>${m.scan ? '核对识别结果' : '手动输入 · ' + G.name}</h2>${m.scan ? '<button type="button" class="btn sm ghost" data-act="mreset">清空重来</button>' : ''}</div>`;
-  if (m.scan) h += scanNote(m, tk);
+  let h = `<div class="glass card" id="editor"><div class="card-head"><h2>${fix ? '修改识别结果' : '手动输入 · ' + G.name}</h2>${fix ? '<button type="button" class="btn sm ghost" data-act="cedit">收起</button>' : ''}</div>`;
   h += `<div style="display:grid;grid-template-columns:1fr 92px;gap:8px"><div class="field"><label for="m-issue">期号（7 位，如 ${Data.latest(g) ? Data.latest(g).code : '2026124'}）</label><input type="tel" id="m-issue" maxlength="7" value="${esc(m.issue)}"></div>
     <div class="field"><label for="m-mult">倍数</label><input type="number" id="m-mult" min="1" max="99" value="${m.mult}"></div></div>`;
   if (G.addPrice) h += `<div class="opt"><span class="lbl">这张票有追加</span><button type="button" class="switch" role="switch" aria-checked="${m.add}" data-act="madd2" aria-label="追加"></button></div>`;
   if (m.lines.length) {
     h += `<div class="sec-title" style="padding:0">已输入 ${m.lines.length} 行 · ${LT.ticketBets(tk)} 注 · ${LT.ticketCost(tk)} 元</div>
     <div class="mlines">${m.lines.map((L, i) => `<div class="mline">${U.lineBalls(g, L, null, g === 'kl8' ? 'xs' : 'sm')}<button type="button" class="btn sm ghost" data-act="mdel" data-i="${i}">删除</button></div>`).join('')}</div>`;
-    // 开奖结果或"还没开奖"的提醒，紧跟在号码下面
-    if (m.show) h += issueOk(m) ? App.prizeHTML(tk) : '<p class="note warn">没认出期号，把票上的 7 位期号填进上面的「期号」。</p>';
-    h += `<div class="row">${m.show ? '' : '<button type="button" class="btn primary" data-act="mcheck">对奖</button>'}<button type="button" class="btn ${m.show ? 'primary' : ''}" data-act="msave" data-k="real">存为实票</button><button type="button" class="btn ghost" data-act="msave" data-k="sim">存为模拟</button></div>`;
+    if (!fix) {
+      if (m.show) h += issueOk(m) ? App.prizeHTML(tk) : '<p class="note warn">期号要填 7 位数字。</p>';
+      h += `<div class="row">${m.show ? '' : '<button type="button" class="btn primary" data-act="mcheck">对奖</button>'}<button type="button" class="btn ${m.show ? 'primary' : ''}" data-act="msave" data-k="real">存为实票</button><button type="button" class="btn ghost" data-act="msave" data-k="sim">存为模拟</button></div>`;
+    }
   }
   h += `<div class="sec-title" style="padding:0">${m.lines.length ? '再加一行' : '点选号码'}</div>${editorGrid(g, m)}
     <div class="row between"><span class="small ${n ? '' : 'faint'}">${n ? `这一行 ${n} 注` : esc(issue)}</span>
@@ -75,33 +75,73 @@ function editorHTML() {
   return h + '</div>';
 }
 
+// 拍票后的结果卡：认出了什么、中没中、中了多少
+function resultHTML() {
+  const m = man(), g = m.g, G = LT.GAMES[g];
+  const tk = { game: g, issue: m.issue, lines: m.lines, mult: m.mult, add: m.add, drawDate: m.drawDate };
+  let h = `<div class="glass card" id="result">`;
+  const bits = [`<b>${G.name}</b>`]; if (m.issue) bits.push(`第 ${esc(LT.issueShort(g, m.issue))} 期`);
+  if (m.lines.length) bits.push(`${LT.ticketBets(tk)} 注${m.mult > 1 ? ` × ${m.mult} 倍` : ''}${m.add ? ' 追加' : ''} · ${LT.ticketCost(tk)} 元`);
+  h += `<div class="row">${m.scan.img ? `<img class="thumb" src="${esc(m.scan.img)}" alt="彩票照片">` : ''}<p class="small grow">${bits.join(' · ')}</p></div>`;
+  h += scanNote(m, tk);
+  if (!m.lines.length) h += '<p class="note warn">号码都删掉了，点下面「识别有误？修改」重新加。</p>';
+  else if (!issueOk(m)) h += '<p class="note warn">没认出期号。点下面「识别有误？修改」，把票上的 7 位期号填上。</p>';
+  else {
+    const r = App.evalTicket(tk);
+    if (r.pending) h += App.waitHTML(g, m.issue, m.drawDate) + `<div class="small muted">你的号码</div>` + App.ticketLines(tk, null);
+    else h += App.prizeHTML(tk);
+  }
+  h += `<div class="row"><button type="button" class="btn primary" data-act="msave" data-k="real" ${m.lines.length && issueOk(m) ? '' : 'disabled'}>存为实票</button><button type="button" class="btn" data-act="msave" data-k="sim" ${m.lines.length && issueOk(m) ? '' : 'disabled'}>存为模拟</button><button type="button" class="btn ghost" data-act="mreset">重拍</button></div>`;
+  if (!S.check.edit) h += `<button type="button" class="linkbtn small" data-act="cedit">识别有误？修改</button>`;
+  return h + '</div>';
+}
+
+// 没在对奖时：最近存的票和它们的结果
+function recentHTML() {
+  const ts = [...S.tickets].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 5);
+  if (!ts.length) return '';
+  return `<div class="sec-title">最近的票</div>` + ts.map(t => { const G = LT.GAMES[t.game];
+    return `<button type="button" class="glass card recent" data-act="tab" data-tab="mine"><div class="tk-head"><span class="gname">${G.name}</span><span class="small muted num">${esc(LT.issueShort(t.game, t.issue))}期</span><span class="badge ${t.kind === 'sim' ? 'sim' : 'real'}">${t.kind === 'sim' ? '模拟' : '实票'}</span><span class="grow"></span>${App.statusBadge(t)}</div></button>`; }).join('');
+}
+
 App.pages.check = () => {
-  const sc = S.check.scan; const can = HB.isNative && !!HB.plugin('TicketOcr');
-  let h = `<header class="lt"><div><h1>对奖</h1><p>拍彩票自动读号，或者手动输入</p></div></header>`;
-  h += `<div class="glass card scan-hero"><div class="lens">${I.scan}</div>`;
-  if (sc.st === 'busy') h += `<div class="row">${sc.img ? `<img class="thumb" src="${esc(sc.img)}" alt="彩票照片">` : ''}<span class="spin"></span><span class="muted">正在读票面…</span></div>`;
-  else if (can) h += `<p class="small muted">对准彩票正面，让号码区域占满画面，光线均匀、别反光。识别在手机上完成，不上传照片。</p>
-      <div class="row" style="justify-content:center"><button type="button" class="btn primary" data-act="snap" data-src="CAMERA">${I.camera.replace('<svg', '<svg class="ico"')}拍照</button><button type="button" class="btn" data-act="snap" data-src="PHOTOS">${I.image.replace('<svg', '<svg class="ico"')}从相册选</button></div>`;
-  else h += '<p class="small muted">拍票识别要在安卓 App 里用。这里可以用下面的手动输入。</p>';
-  if (sc.st === 'fail') h += `<p class="note warn">${esc(sc.msg)}</p>`;
-  if (S.check.raw && S.check.raw.text && sc.st !== 'busy') h += `<details><summary class="small faint">查看识别出的文字</summary><div class="rawtext">${esc(S.check.raw.text)}</div></details>`;
-  h += '</div>';
-  h += App.gameChips(S.check.game, 'cgame');
-  if (!S.check.game) h += `<div class="glass card"><p class="small muted">拍照后会自动认出彩种和期号。要手动输入的话，先点上面的彩种。</p></div>`;
-  else h += editorHTML();
+  const sc = S.check.scan; const can = HB.isNative && !!HB.plugin('TicketOcr'); const m = S.check.man;
+  const scanned = !S.check.manual && m && m.scan && m.g === S.check.game;
+  let h = `<header class="lt"><div><h1>对奖</h1><p>拍一下彩票，自动告诉你中没中、中了多少</p></div></header>`;
+  if (!scanned || sc.st === 'busy') {
+    h += `<div class="glass card scan-hero"><div class="lens">${I.scan}</div>`;
+    if (sc.st === 'busy') h += `<div class="row">${sc.img ? `<img class="thumb" src="${esc(sc.img)}" alt="彩票照片">` : ''}<span class="spin"></span><span class="muted">正在读票面…</span></div>`;
+    else if (can) h += `<p class="small muted">对准彩票正面，让号码区域占满画面，光线均匀、别反光。识别在手机上完成，不上传照片。</p>
+      <div class="row" style="justify-content:center"><button type="button" class="btn primary" data-act="snap" data-src="CAMERA">${I.camera.replace('<svg', '<svg class="ico"')}拍照</button><button type="button" class="btn" data-act="snap" data-src="PHOTOS">${I.image ? I.image.replace('<svg', '<svg class="ico"') : ''}从相册选</button></div>`;
+    else h += '<p class="small muted">拍票识别要在安卓 App 里用。</p>';
+    if (sc.st === 'fail') h += `<p class="note warn">${esc(sc.msg)}</p>`;
+    if (S.check.raw && S.check.raw.text && sc.st !== 'busy') h += `<details><summary class="small faint">查看识别出的文字</summary><div class="rawtext">${esc(S.check.raw.text)}</div></details>`;
+    if (!S.check.manual && sc.st !== 'busy') h += `<button type="button" class="linkbtn small" data-act="cmanual">没法拍照？手动输入号码</button>`;
+    h += '</div>';
+  }
+  if (sc.st === 'busy') return h;
+  if (scanned) {
+    h += resultHTML();
+    if (S.check.edit) h += `<p class="tiny faint" style="padding:0 4px">彩种不对就点对的彩种，会按它重新读照片：</p>` + App.gameChips(S.check.game, 'cgame') + editorHTML(true);
+  } else if (S.check.manual || sc.st === 'fail') {
+    h += App.gameChips(S.check.game, 'cgame');
+    h += S.check.game ? editorHTML(false) : `<div class="glass card"><p class="small muted">先点上面的彩种，再点选号码。</p></div>`;
+  } else h += recentHTML();
   return h;
 };
 
+App.acts.cmanual = () => { Object.assign(S.check, { manual: true, edit: false, man: null, raw: null, scan: { st: 'idle' } }); };
+App.acts.cedit = () => { S.check.edit = !S.check.edit; };
 App.acts.cgame = (a) => {
   const g = a.dataset.g, raw = S.check.raw; S.check.game = g; S.check.man = null;
   // 刚拍过票：按点的彩种重新读那张照片
-  if (raw && raw.text) {
+  if (raw && raw.text && !S.check.manual) {
     const d = window.OCR.parseTicket(raw.text, g);
     if (d.ok) { App.loadDraft(d, { img: raw.img, notes: d.notes, how: 'user', amount: d.amount }); S.check.scan = { st: 'idle' }; U.toast(`按${LT.GAMES[g].name}读出 ${d.lines.length} 行`); }
     else S.check.scan = { st: 'fail', img: raw.img, msg: `按${LT.GAMES[g].name}也没读出号码。换一张更清楚的照片，或者在下面手动输入。` };
   }
 };
-App.acts.mreset = () => { Object.assign(S.check, { game: null, man: null, raw: null, scan: { st: 'idle' } }); };
+App.acts.mreset = () => { Object.assign(S.check, { game: null, man: null, raw: null, manual: false, edit: false, scan: { st: 'idle' } }); };
 App.acts.mdan = () => { man().dan = !man().dan; };
 App.acts.mk = (a) => { const m = man(); m.k = +a.dataset.k; m.cur = blankCur(m.g, m); };
 App.acts.mplay = (a) => { const m = man(); m.play = a.dataset.p; m.cur = blankCur(m.g, m); };
@@ -132,7 +172,7 @@ App.acts.mcheck = () => { const m = man(); if (!issueOk(m)) { U.toast('期号是
 App.acts.msave = async (a) => { const m = man(); if (!issueOk(m)) { U.toast('期号是 7 位数字，如 ' + (Data.latest(m.g) ? Data.latest(m.g).code : '2026124')); return; }
   const kind = a.dataset.k;
   await App.addTicket({ id: App.uid(), game: m.g, issue: m.issue, lines: m.lines, mult: m.mult, add: !!(LT.GAMES[m.g].addPrice && m.add), kind, method: m.scan ? '拍票录入' : '手动录入', drawDate: m.drawDate || '', createdAt: Date.now() });
-  U.toast(kind === 'real' ? '已存为实票' : '已存为模拟'); S.check.man = newMan(m.g); S.check.scan = { st: 'idle' }; S.check.raw = null; };
+  U.toast(kind === 'real' ? '已存为实票，开奖后自动对奖' : '已存为模拟'); Object.assign(S.check, { game: null, man: null, raw: null, manual: false, edit: false, scan: { st: 'idle' } }); window.scrollTo(0, 0); };
 App.inputs['m-issue'] = (t) => { const m = man(); const v = t.value.replace(/\D/g, '').slice(0, 7); if (v !== t.value) t.value = v; m.issue = v; m.show = false; return false; };
 App.inputs['m-mult'] = (t) => { man().mult = Math.min(99, Math.max(1, parseInt(t.value, 10) || 1)); man().show = false; return false; };
 App.changes['m-mult'] = () => true;
@@ -144,7 +184,7 @@ App.acts.snap = async (a) => {
   try { photo = await Cam.getPhoto({ quality: 85, resultType: 'uri', source: a.dataset.src, correctOrientation: true, width: 2200, saveToGallery: false }); }
   catch (e) { if (!/cancel/i.test(String(e && (e.message || e)))) U.toast('没拍成：' + (e.message || e)); return 'noRender'; }
   const img = photo.webPath || (window.Capacitor.convertFileSrc ? window.Capacitor.convertFileSrc(photo.path) : '');
-  S.check.scan = { st: 'busy', img }; S.check.raw = null; App.render();
+  Object.assign(S.check, { scan: { st: 'busy', img }, raw: null, manual: false, edit: false }); App.render();
   try {
     const r = await Ocr.recognize({ path: photo.path || photo.webPath });
     const text = (r && r.text) || '';
@@ -153,7 +193,7 @@ App.acts.snap = async (a) => {
     if (!d.ok) { S.check.scan = { st: 'fail', img, msg: d.msg }; S.check.game = d.game || null; S.check.man = null; }
     else { App.loadDraft(d, { img, notes: d.notes, how: d.how, amount: d.amount }); S.check.scan = { st: 'idle' };
       U.toast(`认出${LT.GAMES[d.game].name}，请核对号码`);
-      setTimeout(() => { const el = document.getElementById('editor'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60); }
+      setTimeout(() => { const el = document.getElementById('result'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60); }
   } catch (e) { S.check.scan = { st: 'fail', img, msg: '识别出错：' + (e.message || e) + '。可以点下面的彩种手动输入。' }; }
   App.render(); return 'noRender';
 };

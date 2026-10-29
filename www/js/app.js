@@ -14,7 +14,7 @@ const S = window.S = {
   pform: { name: '', date: '', hour: '' },
   pick: { game: 'ssq', method: 'random', count: 5, avoid: true, k: 5, play: 'zx', add: false, win: 50, lock: {}, lockOpen: false, results: null, zodiac: null, selP: [], wxP: null, words: '' },
   trend: { game: 'ssq', mode: 'grid', win: 50, pos: 0 },
-  check: { game: null, scan: { st: 'idle' }, man: null, raw: null },
+  check: { game: null, scan: { st: 'idle' }, man: null, raw: null, manual: false, edit: false },
   mine: { seg: 'real', confirmDel: null },
   detail: { kl8k: 10 },
   runner: null
@@ -374,7 +374,7 @@ const REPO = '2026cjh/kuailemima';
 const verNum = (v) => String(v || '').replace(/^v/, '').split('.').map(x => parseInt(x, 10) || 0);
 const newer = (a, b) => { const x = verNum(a), y = verNum(b); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
 async function checkUpdate(manual) {
-  if (!manual && Date.now() - (S.settings.updAt || 0) < 20 * 3600e3) return;
+  if (!manual && Date.now() - (S.settings.updAt || 0) < 6 * 3600e3) return;
   if (manual) { S.checkingUpd = true; render(); }
   try {
     const res = await Promise.race([fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } }),
@@ -409,7 +409,7 @@ App.acts.kl8k = (a) => { S.detail.kl8k = +a.dataset.k; };
 App.acts.settings = () => { App.openSub({ type: 'settings' }); runnerStatus().then(render); return 'noRender'; };
 App.acts.gotrend = (a) => { S.trend.game = a.dataset.g; App.saveTrend(); App.go('trend'); return 'noRender'; };
 App.acts.gopick = (a) => { S.pick.game = a.dataset.g; S.pick.results = null; App.savePick(); App.go('pick'); return 'noRender'; };
-App.acts.gocheck = (a) => { S.check.game = a.dataset.g; S.check.man = null; App.go('check'); return 'noRender'; };
+App.acts.gocheck = (a) => { Object.assign(S.check, { game: a.dataset.g, man: null, raw: null, manual: false, edit: false, scan: { st: 'idle' } }); App.go('check'); return 'noRender'; };
 App.acts.mseg = (a) => { S.mine.seg = a.dataset.v; S.mine.confirmDel = null; };
 App.acts.delask = (a) => { S.mine.confirmDel = a.dataset.id; };
 App.acts.delno = () => { S.mine.confirmDel = null; };
@@ -442,7 +442,7 @@ document.addEventListener('click', async (e) => {
 document.addEventListener('input', (e) => { const fn = App.inputs[e.target.id]; if (fn && fn(e.target) !== false) render(); });
 document.addEventListener('change', (e) => { const fn = App.changes[e.target.id]; if (fn && fn(e.target) !== false) render(); });
 $('#scanfab').addEventListener('click', () => {
-  if (S.tab !== 'check' && !(S.check.man && S.check.man.lines.length)) Object.assign(S.check, { game: null, man: null, raw: null, scan: { st: 'idle' } });
+  if (S.tab !== 'check' && !(S.check.man && S.check.man.lines.length)) Object.assign(S.check, { game: null, man: null, raw: null, manual: false, edit: false, scan: { st: 'idle' } });
   App.go('check');
 });
 
