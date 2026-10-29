@@ -56,6 +56,13 @@ function fitBalls(root) {
     el.style.setProperty('--k', k.toFixed(3));
     for (let i = 0; i < 3 && el.scrollWidth > el.clientWidth + 1; i++) { k -= 0.03; el.style.setProperty('--k', k.toFixed(3)); }
   });
+  // 奖级表四列放不下时改成三列（条件挪到奖级下面）
+  (root || document).querySelectorAll('.ptable.fit').forEach(t => {
+    t.classList.remove('stack'); const w = t.parentElement.clientWidth; if (!w) return;
+    // 表格超宽，或者条件列被挤成三行以上，都改成三列
+    const squeezed = [...t.querySelectorAll('td.cond')].some(c => { const lh = parseFloat(getComputedStyle(c).lineHeight) || 18; return c.clientHeight - 20 > lh * 2.2; });
+    if (t.offsetWidth > w + 1 || squeezed) t.classList.add('stack');
+  });
 }
 function ball(v, cls, digit) { return `<span class="ball ${cls || ''}">${digit ? v : pad(v)}</span>`; }
 // 开奖号码

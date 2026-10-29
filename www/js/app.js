@@ -160,11 +160,13 @@ App.pages.detail = () => {
     const yuan = (v) => v == null ? '浮动' : Number.isInteger(v) ? v.toLocaleString('en-US') : v.toFixed(1);
     const cnt = (v) => v == null ? '—' : v.toLocaleString('en-US');
     h += `<div class="glass card"><div class="card-head"><h2>中奖情况</h2>${g === 'dlt' && ctx.boost ? '<span class="badge win">奖池超 8 亿加奖</span>' : ''}</div>
-      <table class="ptable"><thead><tr><th>奖级</th><th class="c">中奖条件</th><th class="r">中奖注数</th><th class="r">每注奖金(元)</th></tr></thead><tbody>`;
+      <div class="tbl"><table class="ptable fit"><thead><tr><th>奖级</th><th class="c">中奖条件</th><th class="r">中奖注数</th><th class="r">每注奖金(元)</th></tr></thead><tbody>`;
     names.forEach((n, ix) => { const gr = pick(n), ga = pickAdd(n); const amt = gr && gr.amount ? gr.amount : LT.amountOf(g, n, ctx);
-      h += `<tr class="${ix < 2 ? 'top' : ''}"><td class="lv">${esc(n)}</td><td class="c cond">${String(cond[n] || '').split(/\s*\/\s*/).filter(Boolean).map((c, j, a) => `<span>${esc(c)}${j < a.length - 1 ? ',' : ''}</span>`).join('<wbr>')}</td><td class="r num">${cnt(gr && gr.count)}</td><td class="r amt">${yuan(amt)}</td></tr>`;
-      if (ga) h += `<tr class="add"><td class="lv">${esc(n)}<small>追加</small></td><td></td><td class="r num">${cnt(ga.count)}</td><td class="r amt">${ga.amount != null ? yuan(ga.amount) : '—'}</td></tr>`; });
-    h += '</tbody></table>';
+      // 条件在逗号处换行；屏幕放不下四列时（字号调大的手机），条件挪到奖级下面
+      const ch = String(cond[n] || '').split(/\s*\/\s*/).filter(Boolean).map((c, j, a) => `<span>${esc(c)}${j < a.length - 1 ? ',' : ''}</span>`).join('<wbr>');
+      h += `<tr class="${ix < 2 ? 'top' : ''}"><td class="lv">${esc(n)}${ch ? `<small class="cond2">${ch}</small>` : ''}</td><td class="c cond">${ch}</td><td class="r num">${cnt(gr && gr.count)}</td><td class="r amt">${yuan(amt)}</td></tr>`;
+      if (ga) h += `<tr class="add"><td class="lv addlv">追加</td><td class="c"></td><td class="r num">${cnt(ga.count)}</td><td class="r amt">${ga.amount != null ? yuan(ga.amount) : '—'}</td></tr>`; });
+    h += '</tbody></table></div>';
     if (!grades) h += '<p class="tiny faint">这一期的中奖注数没有保存，表里是规则奖金。</p>';
     else if (d.partial) h += '<p class="tiny faint">早期数据只保存了一、二等奖。</p>';
     h += '</div>';
