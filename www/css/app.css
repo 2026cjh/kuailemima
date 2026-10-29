@@ -97,19 +97,22 @@ h1,h2,h3{margin:0;text-wrap:balance} p{margin:0}
 .seg button[aria-pressed="true"]{background:var(--glass-3);color:var(--ink);box-shadow:0 4px 12px -6px var(--shade),inset 0 1px 0 var(--hi)}
 
 /* 号码球 */
-.balls{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.ball{--c:var(--red);width:34px;height:34px;border-radius:50%;flex:none;display:inline-grid;place-items:center;position:relative;
-  font:600 17px/1 var(--f-num);font-variant-numeric:tabular-nums;color:#fff;letter-spacing:-.01em;
-  background:radial-gradient(circle at 32% 24%,rgba(255,255,255,.9) 0 6%,rgba(255,255,255,0) 24%),
-    radial-gradient(circle at 50% 62%,var(--c) 0 52%,color-mix(in srgb,var(--c) 68%,#000) 100%);
-  box-shadow:inset 0 -3px 5px rgba(0,0,0,.16),inset 0 2px 2px rgba(255,255,255,.3),0 5px 12px -6px color-mix(in srgb,var(--c) 70%,transparent)}
+/* 平面球；--k 是一排放不下时整体缩小的比例（ui.js fitBalls 算） */
+.balls{--k:1;display:flex;flex-wrap:wrap;gap:calc(5px*var(--k));align-items:center}
+.balls.one{flex-wrap:nowrap;min-width:0;max-width:100%}
+.balls.one.wrap{flex-wrap:wrap}
+.balls.one>.badge{flex:none}
+.balls.k20{display:grid;grid-template-columns:repeat(10,max-content);gap:5px}
+.ball{--c:var(--red);--bs:28px;width:calc(var(--bs)*var(--k,1));height:calc(var(--bs)*var(--k,1));border-radius:50%;flex:none;
+  display:inline-grid;place-items:center;position:relative;background:var(--c);color:#fff;
+  font:600 calc(var(--bs)*var(--k,1)*.54)/1 var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 .ball.b{--c:var(--blue)} .ball.g{--c:var(--gold)}
-.ball.sm{width:26px;height:26px;font-size:13.5px}
-.ball.xs{width:22px;height:22px;font-size:12px}
-.ball.miss{background:var(--glass-2);color:color-mix(in srgb,var(--c) 85%,var(--ink));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--c) 35%,transparent)}
+.ball.sm{--bs:24px}
+.ball.xs{--bs:20px}
+.ball.miss{background:transparent;color:color-mix(in srgb,var(--c) 85%,var(--ink));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--c) 40%,transparent)}
 .ball.dan::after{content:"胆";position:absolute;top:-6px;right:-7px;font:700 9px/1 var(--f-ui);background:var(--gold);color:#fff;border-radius:5px;padding:2px 3px}
 .ball .tag{position:absolute;bottom:-7px;font:600 9px/1 var(--f-ui);color:var(--ink-3)}
-.plus{color:var(--ink-3);font:600 16px/1 var(--f-num);padding:0 1px}
+.plus{color:var(--ink-3);font:600 calc(14px*var(--k,1))/1 var(--f-num);padding:0 1px;flex:none}
 .poslab{font-size:11px;color:var(--ink-3);width:100%}
 
 /* 首页开奖卡 */
@@ -203,7 +206,10 @@ input:focus,select:focus{border-color:var(--accent)}
 .ptable td.r,.ptable th.r{text-align:right}
 .ptable .amt{font-family:var(--f-num);font-weight:600}
 .ptable tr.top td:first-child{font-weight:700}
-.navrow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.navrow{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.navrow .btn{white-space:nowrap;flex:none;padding-inline:8px}
+.navrow>div{min-width:0}
+.navrow b{white-space:nowrap}
 .region{font-size:13.5px;color:var(--ink-2);line-height:1.7}
 
 /* 对奖 */

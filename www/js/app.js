@@ -106,7 +106,7 @@ App.pages.home = () => {
       <div class="draw-top"><h2>${G.name}</h2><span class="org ${G.org === '福彩' ? 'fc' : 'tc'}">${G.org}</span>
         <span class="grow small muted num">${d ? `${esc(LT.issueShort(g, d.code))}期 · ${mdw(d.date)}` : ''}</span>${gameBadge(g)}</div>`;
     if (d) {
-      h += `<button type="button" data-act="detail" data-g="${g}" data-code="${d.code}" style="text-align:left" aria-label="${G.name}开奖详情">${U.drawBalls(g, d, g === 'kl8' ? 'xs' : g === 'qlc' ? 'sm' : '')}</button>`;
+      h += `<button type="button" data-act="detail" data-g="${g}" data-code="${d.code}" style="text-align:left" aria-label="${G.name}开奖详情">${U.drawBalls(g, d, g === 'kl8' ? 'xs' : '')}</button>`;
       const meta = [];
       if (d.pool != null && d.pool > 0) meta.push(`奖池 <b>${d.pool >= 1 ? d.pool.toFixed(2) + '亿' : money(d.pool * 1e8)}</b>`);
       if (d.sales != null) meta.push(`销售 <b>${money(d.sales)}</b>`);
@@ -129,7 +129,7 @@ App.pages.detail = () => {
   if (!d) return h + '<div class="empty">没有这一期的数据。</div></div>';
   h += `<div class="glass card"><div class="navrow">
       <button type="button" class="btn sm ghost" data-act="detail" data-g="${g}" data-code="${i > 0 ? list[i - 1].code : ''}" ${i > 0 ? '' : 'disabled'}>${I.back.replace('<svg', '<svg class="ico"')}上一期</button>
-      <div style="text-align:center"><b class="num" style="font-size:18px">第 ${esc(LT.issueShort(g, d.code))} 期</b><div class="tiny muted">${mdw(d.date)} ${G.time}</div></div>
+      <div style="text-align:center"><b class="num" style="font-size:16px">第 ${esc(LT.issueShort(g, d.code))} 期</b><div class="tiny muted">${mdw(d.date)} ${G.time}</div></div>
       <button type="button" class="btn sm ghost" data-act="detail" data-g="${g}" data-code="${i < list.length - 1 ? list[i + 1].code : ''}" ${i < list.length - 1 ? '' : 'disabled'}>下一期${I.next.replace('<svg', '<svg class="ico"')}</button></div>
     <div style="display:grid;place-items:center;padding:6px 0">${U.drawBalls(g, d)}</div>`;
   if (G.kind === 'digit') { const sum = d.n.reduce((a, b) => a + b, 0), span = Math.max(...d.n) - Math.min(...d.n), dist = LT.uniq(d.n).length;
@@ -184,7 +184,9 @@ App.showWins = () => {
       <p class="small">${LT.sortLevels(Object.keys(r.tally)).map(k => esc(k) + ' × ' + r.tally[k]).join('，')}</p></div>`; }).join('')}
     ${ws.some(t => t.kind === 'sim') ? '<p class="tiny faint" style="text-align:center">模拟票没有真的买，只是记录这组号码会中多少。</p>' : ''}
     <button type="button" class="btn primary" data-act="ackwins">知道了</button></div></div>`;
+  U.fitBalls(el);
 };
+window.addEventListener('resize', () => U.fitBalls());
 App.acts.ackwins = () => { unackedWins().forEach(t => { S.ack[t.id] = 1; }); Store.set('ack', S.ack); $('#sheet').innerHTML = ''; render(); };
 App.acts.showwins = () => App.showWins();
 App.acts.closesheet = (a, e) => { if (e.target === a) $('#sheet').innerHTML = ''; return 'noRender'; };
@@ -351,6 +353,7 @@ function render() {
   const sub = $('#sub');
   if (S.sub && S.ready) { sub.innerHTML = '<div class="ambient"></div>' + (App.pages[S.sub.type] || (() => ''))(); requestAnimationFrame(() => sub.classList.add('open')); }
   else { sub.classList.remove('open'); setTimeout(() => { if (!S.sub) sub.innerHTML = ''; }, 300); }
+  U.fitBalls(page); if (S.sub && S.ready) U.fitBalls(sub);
   if (fid) { const el = document.getElementById(fid); if (el && el !== document.activeElement) { el.focus({ preventScroll: true }); if (sel) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) {} } }
 }
 App.render = render;

@@ -45,15 +45,27 @@ const I = {
 };
 
 /* 号码球 */
+// 一排放不下时按比例缩小（最小 0.7 倍），再小就看不清了，改成换行
+function fitBalls(root) {
+  (root || document).querySelectorAll('.balls.one').forEach(el => {
+    el.style.removeProperty('--k'); el.classList.remove('wrap');
+    const cw = el.clientWidth, sw = el.scrollWidth;
+    if (!cw || sw <= cw + 1) return;
+    let k = (cw - 2) / sw;
+    if (k < 0.7) { el.classList.add('wrap'); return; }
+    el.style.setProperty('--k', k.toFixed(3));
+    for (let i = 0; i < 3 && el.scrollWidth > el.clientWidth + 1; i++) { k -= 0.03; el.style.setProperty('--k', k.toFixed(3)); }
+  });
+}
 function ball(v, cls, digit) { return `<span class="ball ${cls || ''}">${digit ? v : pad(v)}</span>`; }
 // 开奖号码
 function drawBalls(g, d, size) {
   const G = LT.GAMES[g]; const s = size || '';
   if (!d) return '';
-  if (G.kind === 'lotto') return `<span class="balls">${d.n.map(x => ball(x, s)).join('')}${d.s.length ? `<span class="plus">+</span>${d.s.map(x => ball(x, 'b ' + s)).join('')}` : ''}</span>`;
-  if (G.kind === 'keno') return `<span class="balls">${d.n.map(x => ball(x, s || 'sm')).join('')}</span>`;
-  if (G.kind === 'digit') return `<span class="balls">${d.n.map(x => ball(x, s, true)).join('')}</span>`;
-  if (G.kind === 'qxc') return `<span class="balls">${d.n.map(x => ball(x, s, true)).join('')}<span class="plus">+</span>${ball(d.s[0], 'b ' + s, true)}</span>`;
+  if (G.kind === 'lotto') return `<span class="balls one">${d.n.map(x => ball(x, s)).join('')}${d.s.length ? `<span class="plus">+</span>${d.s.map(x => ball(x, 'b ' + s)).join('')}` : ''}</span>`;
+  if (G.kind === 'keno') return `<span class="balls k20">${d.n.map(x => ball(x, s || 'sm')).join('')}</span>`;
+  if (G.kind === 'digit') return `<span class="balls one">${d.n.map(x => ball(x, s, true)).join('')}</span>`;
+  if (G.kind === 'qxc') return `<span class="balls one">${d.n.map(x => ball(x, s, true)).join('')}<span class="plus">+</span>${ball(d.s[0], 'b ' + s, true)}</span>`;
   return '';
 }
 // 投注行；给了 draw 就把没中的号码画成空心
@@ -64,15 +76,15 @@ function lineBalls(g, L, draw, size) {
     const spec = (x) => g === 'qlc' && draw && draw.s.includes(x);
     const mk = (x, dan) => ball(x, (spec(x) ? 'g ' : '') + (hitN(x) || spec(x) ? '' : 'miss ') + (dan ? 'dan ' : '') + s);
     const mkB = (x, dan) => ball(x, 'b ' + (hitS(x) ? '' : 'miss ') + (dan ? 'dan ' : '') + s);
-    return `<span class="balls">${(L.fd || []).map(x => mk(x, 1)).join('')}${(L.f || []).map(x => mk(x)).join('')}${G.sub ? `<span class="plus">+</span>${(L.bd || []).map(x => mkB(x, 1)).join('')}${(L.b || []).map(x => mkB(x)).join('')}` : ''}</span>`;
+    return `<span class="balls one">${(L.fd || []).map(x => mk(x, 1)).join('')}${(L.f || []).map(x => mk(x)).join('')}${G.sub ? `<span class="plus">+</span>${(L.bd || []).map(x => mkB(x, 1)).join('')}${(L.b || []).map(x => mkB(x)).join('')}` : ''}</span>`;
   }
-  if (G.kind === 'keno') return `<span class="balls"><span class="badge sim">${LT.KENO_NAME[L.k] || ''}</span>${(L.fd || []).map(x => ball(x, (hitN(x) ? '' : 'miss ') + 'dan ' + s)).join('')}${(L.f || []).map(x => ball(x, (hitN(x) ? '' : 'miss ') + s)).join('')}</span>`;
+  if (G.kind === 'keno') return `<span class="balls one"><span class="badge sim">${LT.KENO_NAME[L.k] || ''}</span>${(L.fd || []).map(x => ball(x, (hitN(x) ? '' : 'miss ') + 'dan ' + s)).join('')}${(L.f || []).map(x => ball(x, (hitN(x) ? '' : 'miss ') + s)).join('')}</span>`;
   if (G.kind === 'digit') {
-    if (L.play === 'zx') return `<span class="balls">${L.pos.map((a, i) => a.map(x => ball(x, (!draw || draw.n[i] === x ? '' : 'miss ') + s, true)).join('')).join('<span class="plus">·</span>')}</span>`;
+    if (L.play === 'zx') return `<span class="balls one">${L.pos.map((a, i) => a.map(x => ball(x, (!draw || draw.n[i] === x ? '' : 'miss ') + s, true)).join('')).join('<span class="plus">·</span>')}</span>`;
     const ds = L.d || L.f || [];
-    return `<span class="balls"><span class="badge sim">${LT.PLAY_NAME[L.play]}</span>${ds.map(x => ball(x, (!draw || draw.n.includes(x) ? '' : 'miss ') + s, true)).join('')}</span>`;
+    return `<span class="balls one"><span class="badge sim">${LT.PLAY_NAME[L.play]}</span>${ds.map(x => ball(x, (!draw || draw.n.includes(x) ? '' : 'miss ') + s, true)).join('')}</span>`;
   }
-  if (G.kind === 'qxc') return `<span class="balls">${L.pos.map((a, i) => a.map(x => ball(x, (!draw || draw.n[i] === x ? '' : 'miss ') + s, true)).join('')).join('<span class="plus">·</span>')}<span class="plus">+</span>${(L.b || []).map(x => ball(x, 'b ' + (!draw || draw.s[0] === x ? '' : 'miss ') + s, true)).join('')}</span>`;
+  if (G.kind === 'qxc') return `<span class="balls one">${L.pos.map((a, i) => a.map(x => ball(x, (!draw || draw.n[i] === x ? '' : 'miss ') + s, true)).join('')).join('<span class="plus">·</span>')}<span class="plus">+</span>${(L.b || []).map(x => ball(x, 'b ' + (!draw || draw.s[0] === x ? '' : 'miss ') + s, true)).join('')}</span>`;
   return '';
 }
 function lineText(g, L) {
@@ -94,5 +106,5 @@ async function copy(text) {
   catch (e) { try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('已复制'); return true; } catch (e2) { toast('复制没成功'); return false; } }
 }
 
-window.U = { $, esc, pad, wk, md, mdw, money, ago, I, ball, drawBalls, lineBalls, lineText, toast, haptic, copy };
+window.U = { $, esc, pad, wk, md, mdw, money, ago, I, ball, fitBalls, drawBalls, lineBalls, lineText, toast, haptic, copy };
 })();
