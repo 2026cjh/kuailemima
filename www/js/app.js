@@ -13,7 +13,7 @@ const S = window.S = {
   pform: { name: '', date: '', hour: '' },
   pick: { game: 'ssq', method: 'random', count: 5, avoid: true, k: 5, play: 'zx', add: false, win: 50, lock: {}, lockOpen: false, results: null, zodiac: null, selP: [], wxP: null, words: '' },
   trend: { game: 'ssq', mode: 'grid', win: 50, pos: 0 },
-  check: { game: 'ssq', scan: { st: 'idle' }, man: null },
+  check: { game: null, scan: { st: 'idle' }, man: null, raw: null },
   mine: { seg: 'real', confirmDel: null },
   detail: { kl8k: 10 },
   runner: null
@@ -29,7 +29,6 @@ async function loadAll() {
   if (pick) Object.assign(S.pick, pick, { results: null, lockOpen: false });
   if (trend) Object.assign(S.trend, trend);
   if (!LT.GAMES[S.pick.game]) S.pick.game = 'ssq'; if (!LT.GAMES[S.trend.game]) S.trend.game = 'ssq';
-  S.check.game = S.pick.game;
 }
 App.savePick = () => { const p = S.pick; Store.set('pick', { game: p.game, method: p.method, count: p.count, avoid: p.avoid, k: p.k, play: p.play, win: p.win, zodiac: p.zodiac, selP: p.selP, wxP: p.wxP, words: p.words }); };
 App.saveTrend = () => Store.set('trend', S.trend);
@@ -56,7 +55,7 @@ App.statusBadge = (t) => {
 App.prizeHTML = (t) => {
   const g = t.game, G = LT.GAMES[g]; if (!t.issue) return '<p class="note warn">没有期号，补上期号才能对奖。</p>';
   const r = App.evalTicket(t);
-  if (r.pending) { const n = Data.next(g); return `<p class="note">第 ${esc(t.issue)} 期还没开奖${n && n.code === t.issue ? `，${mdw(n.date)} ${G.time} 开奖` : ''}。保存后开奖了会自动对奖。</p>`; }
+  if (r.pending) return App.waitHTML(g, t.issue, t.drawDate);
   const d = r.draw; const names = LT.sortLevels(Object.keys(r.tally));
   let h = `<div class="prize"><div class="row between"><span class="small muted">第 ${esc(LT.issueShort(g, d.code))} 期开奖 · ${mdw(d.date)}</span></div>${U.drawBalls(g, d, 'sm')}`;
   if (!names.length) h += `<p>这张票没有中奖，共 ${r.bets} 注。</p>`;
@@ -70,6 +69,20 @@ App.prizeHTML = (t) => {
     if (r.tally['福运奖']) h += '<p class="small muted">本期双色球在执行奖池特别规定，中 3 个红球有 5 元福运奖。</p>';
   }
   return h + '</div>';
+};
+// 还没开奖：算出开奖时间，提醒用户；比最新一期还早却查不到，多半是期号认错了
+App.waitHTML = (g, issue, printed) => {
+  const G = LT.GAMES[g], last = Data.latest(g), short = esc(LT.issueShort(g, issue));
+  if (last && issue <= last.code) return `<p class="note warn">没找到第 ${short} 期的开奖号码。核对一下期号对不对；期号没错的话，到「设置」里点「全部重新获取」。</p>`;
+  const date = printed || LT.issueDate(g, issue, Data.draws[g]);
+  let when = '';
+  if (date) {
+    const now = LT.bjNow(), today = LT.ymd(now), days = Math.round((Date.parse(date) - Date.parse(today)) / 864e5);
+    const [hh, mm] = G.time.split(':').map(Number), past = days === 0 && now.getUTCHours() * 60 + now.getUTCMinutes() >= hh * 60 + mm;
+    if (past) return `<p class="note wait"><b>第 ${short} 期今晚 ${G.time} 已经开奖</b>，开奖号码还没取到。稍后点首页右上角刷新；存为实票的话，取到后会自动对奖。</p>`;
+    when = (days === 0 ? `今晚 ${G.time}` : days === 1 ? `明晚 ${G.time}` : `${mdw(date)} ${G.time}`) + ' 开奖' + (days > 1 ? `，还有 ${days} 天` : '');
+  }
+  return `<p class="note wait"><b>第 ${short} 期还没开奖</b>${when ? `，${when}` : ''}。点「存为实票」，开奖后会自动对奖，中了会通知你。</p>`;
 };
 App.ticketLines = (t, draw) => `<div class="mlines">${t.lines.map(L => { const n = LT.lineBets(t.game, L);
   return `<div class="mline">${U.lineBalls(t.game, L, draw)}${n > 1 ? `<span class="tiny faint num">${n}注</span>` : ''}</div>`; }).join('')}</div>`;
@@ -380,7 +393,10 @@ document.addEventListener('click', async (e) => {
 });
 document.addEventListener('input', (e) => { const fn = App.inputs[e.target.id]; if (fn && fn(e.target) !== false) render(); });
 document.addEventListener('change', (e) => { const fn = App.changes[e.target.id]; if (fn && fn(e.target) !== false) render(); });
-$('#scanfab').addEventListener('click', () => App.go('check'));
+$('#scanfab').addEventListener('click', () => {
+  if (S.tab !== 'check' && !(S.check.man && S.check.man.lines.length)) Object.assign(S.check, { game: null, man: null, raw: null, scan: { st: 'idle' } });
+  App.go('check');
+});
 
 /* ---------- 启动 ---------- */
 async function start() {

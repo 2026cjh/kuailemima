@@ -15,7 +15,7 @@ function newMan(g) { const d = Data.latest(g); const m = { g, issue: d ? d.code 
 function man() { if (!S.check.man || S.check.man.g !== S.check.game) S.check.man = newMan(S.check.game); return S.check.man; }
 App.loadDraft = (d, scan) => { // 识别结果填进编辑器
   S.check.game = d.game; const m = newMan(d.game);
-  Object.assign(m, { issue: d.issue || m.issue, mult: d.mult || 1, add: !!d.add, lines: d.lines || [], show: !!(d.lines && d.lines.length && d.issue), scan });
+  Object.assign(m, { issue: d.issue || m.issue, mult: d.mult || 1, add: !!d.add, lines: d.lines || [], show: !!(d.lines && d.lines.length), drawDate: d.drawDate || '', scan });
   const L0 = (d.lines || [])[0]; if (L0 && L0.k) m.k = L0.k; if (L0 && L0.play) m.play = L0.play; m.cur = blankCur(d.game, m);
   S.check.man = m;
 };
@@ -44,21 +44,34 @@ function editorGrid(g, m) {
   return h;
 }
 
+function scanNote(m, tk) {
+  const sc = m.scan, G = LT.GAMES[m.g]; let h = '';
+  const bits = [`<b>${G.name}</b>`]; if (m.issue) bits.push(`第 ${esc(LT.issueShort(m.g, m.issue))} 期`); bits.push(`${m.lines.length} 行号码`); if (m.mult > 1) bits.push(`${m.mult} 倍`);
+  h += `<div class="row">${sc.img ? `<img class="thumb" src="${esc(sc.img)}" alt="彩票照片">` : ''}<p class="small grow">认出：${bits.join(' · ')}<br><span class="muted">和票面对一下，有错就删掉那行重新点。</span></p></div>`;
+  if (sc.how === 'guess' || sc.how === 'hint') h += `<p class="note warn">票面上的彩种名字没认出来，${sc.how === 'hint' ? '按票上的彩票中心字样和号码' : '按号码的样子'}判断是<b>${G.name}</b>。不对的话点上面的彩种，按那个彩种重新读。</p>`;
+  if (sc.amount != null && m.lines.length) { const cost = LT.ticketCost(tk);
+    if (Math.abs(cost - sc.amount) > 0.01) h += `<p class="note warn">票面金额 ${sc.amount} 元，按认出的号码和倍数算是 ${cost} 元，对不上，可能有号码或倍数认错了，请核对。</p>`; }
+  if (sc.notes && sc.notes.length) h += `<p class="tiny faint">没认出的行：${esc(sc.notes.slice(0, 3).join(' / '))}</p>`;
+  return h;
+}
 function editorHTML() {
   const m = man(), g = m.g, G = LT.GAMES[g]; const c = m.cur; const n = LT.lineBets(g, c); const issue = LT.lineIssues(g, c);
-  const tk = { game: g, issue: m.issue, lines: m.lines, mult: m.mult, add: m.add };
-  let h = `<div class="glass card" id="editor"><div class="card-head"><h2>${m.scan ? '核对识别结果' : '手动输入'}</h2>${m.scan ? '<button type="button" class="btn sm ghost" data-act="mreset">清空重来</button>' : ''}</div>`;
-  if (m.scan) h += `<div class="row">${m.scan.img ? `<img class="thumb" src="${esc(m.scan.img)}" alt="彩票照片">` : ''}<p class="small grow">认出 ${m.lines.length} 行号码。和票面对一下，有错就删掉那行重新点。${m.scan.notes && m.scan.notes.length ? `<br><span class="faint">没认出的行：${esc(m.scan.notes.slice(0, 3).join(' / '))}</span>` : ''}</p></div>`;
+  const tk = { game: g, issue: m.issue, lines: m.lines, mult: m.mult, add: m.add, drawDate: m.drawDate };
+  let h = `<div class="glass card" id="editor"><div class="card-head"><h2>${m.scan ? '核对识别结果' : '手动输入 · ' + G.name}</h2>${m.scan ? '<button type="button" class="btn sm ghost" data-act="mreset">清空重来</button>' : ''}</div>`;
+  if (m.scan) h += scanNote(m, tk);
   h += `<div style="display:grid;grid-template-columns:1fr 92px;gap:8px"><div class="field"><label for="m-issue">期号（7 位，如 ${Data.latest(g) ? Data.latest(g).code : '2026124'}）</label><input type="tel" id="m-issue" maxlength="7" value="${esc(m.issue)}"></div>
     <div class="field"><label for="m-mult">倍数</label><input type="number" id="m-mult" min="1" max="99" value="${m.mult}"></div></div>`;
   if (G.addPrice) h += `<div class="opt"><span class="lbl">这张票有追加</span><button type="button" class="switch" role="switch" aria-checked="${m.add}" data-act="madd2" aria-label="追加"></button></div>`;
-  if (m.lines.length) h += `<div class="sec-title" style="padding:0">已输入 ${m.lines.length} 行 · ${LT.ticketBets(tk)} 注 · ${LT.ticketCost(tk)} 元</div>
+  if (m.lines.length) {
+    h += `<div class="sec-title" style="padding:0">已输入 ${m.lines.length} 行 · ${LT.ticketBets(tk)} 注 · ${LT.ticketCost(tk)} 元</div>
     <div class="mlines">${m.lines.map((L, i) => `<div class="mline">${U.lineBalls(g, L, null, g === 'kl8' ? 'xs' : 'sm')}<button type="button" class="btn sm ghost" data-act="mdel" data-i="${i}">删除</button></div>`).join('')}</div>`;
+    // 开奖结果或"还没开奖"的提醒，紧跟在号码下面
+    if (m.show) h += issueOk(m) ? App.prizeHTML(tk) : '<p class="note warn">没认出期号，把票上的 7 位期号填进上面的「期号」。</p>';
+    h += `<div class="row">${m.show ? '' : '<button type="button" class="btn primary" data-act="mcheck">对奖</button>'}<button type="button" class="btn ${m.show ? 'primary' : ''}" data-act="msave" data-k="real">存为实票</button><button type="button" class="btn ghost" data-act="msave" data-k="sim">存为模拟</button></div>`;
+  }
   h += `<div class="sec-title" style="padding:0">${m.lines.length ? '再加一行' : '点选号码'}</div>${editorGrid(g, m)}
     <div class="row between"><span class="small ${n ? '' : 'faint'}">${n ? `这一行 ${n} 注` : esc(issue)}</span>
     <span class="row"><button type="button" class="btn sm ghost" data-act="mclear">清空</button><button type="button" class="btn sm primary" data-act="maddline" ${n ? '' : 'disabled'}>加入这一行</button></span></div>`;
-  if (m.lines.length) h += `<div class="row"><button type="button" class="btn primary" data-act="mcheck">对奖</button><button type="button" class="btn" data-act="msave" data-k="real">存为实票</button><button type="button" class="btn ghost" data-act="msave" data-k="sim">存为模拟</button></div>`;
-  if (m.show && m.lines.length) h += App.prizeHTML(tk);
   return h + '</div>';
 }
 
@@ -70,15 +83,25 @@ App.pages.check = () => {
   else if (can) h += `<p class="small muted">对准彩票正面，让号码区域占满画面，光线均匀、别反光。识别在手机上完成，不上传照片。</p>
       <div class="row" style="justify-content:center"><button type="button" class="btn primary" data-act="snap" data-src="CAMERA">${I.camera.replace('<svg', '<svg class="ico"')}拍照</button><button type="button" class="btn" data-act="snap" data-src="PHOTOS">${I.image.replace('<svg', '<svg class="ico"')}从相册选</button></div>`;
   else h += '<p class="small muted">拍票识别要在安卓 App 里用。这里可以用下面的手动输入。</p>';
-  if (sc.st === 'fail') h += `<p class="note warn">${esc(sc.msg)}</p>${sc.raw ? `<details><summary class="small faint">查看识别出的文字</summary><div class="rawtext">${esc(sc.raw)}</div></details>` : ''}`;
+  if (sc.st === 'fail') h += `<p class="note warn">${esc(sc.msg)}</p>`;
+  if (S.check.raw && S.check.raw.text && sc.st !== 'busy') h += `<details><summary class="small faint">查看识别出的文字</summary><div class="rawtext">${esc(S.check.raw.text)}</div></details>`;
   h += '</div>';
   h += App.gameChips(S.check.game, 'cgame');
-  h += editorHTML();
+  if (!S.check.game) h += `<div class="glass card"><p class="small muted">拍照后会自动认出彩种和期号。要手动输入的话，先点上面的彩种。</p></div>`;
+  else h += editorHTML();
   return h;
 };
 
-App.acts.cgame = (a) => { S.check.game = a.dataset.g; S.check.man = null; };
-App.acts.mreset = () => { S.check.man = newMan(S.check.game); S.check.scan = { st: 'idle' }; };
+App.acts.cgame = (a) => {
+  const g = a.dataset.g, raw = S.check.raw; S.check.game = g; S.check.man = null;
+  // 刚拍过票：按点的彩种重新读那张照片
+  if (raw && raw.text) {
+    const d = window.OCR.parseTicket(raw.text, g);
+    if (d.ok) { App.loadDraft(d, { img: raw.img, notes: d.notes, how: 'user', amount: d.amount }); S.check.scan = { st: 'idle' }; U.toast(`按${LT.GAMES[g].name}读出 ${d.lines.length} 行`); }
+    else S.check.scan = { st: 'fail', img: raw.img, msg: `按${LT.GAMES[g].name}也没读出号码。换一张更清楚的照片，或者在下面手动输入。` };
+  }
+};
+App.acts.mreset = () => { Object.assign(S.check, { game: null, man: null, raw: null, scan: { st: 'idle' } }); };
 App.acts.mdan = () => { man().dan = !man().dan; };
 App.acts.mk = (a) => { const m = man(); m.k = +a.dataset.k; m.cur = blankCur(m.g, m); };
 App.acts.mplay = (a) => { const m = man(); m.play = a.dataset.p; m.cur = blankCur(m.g, m); };
@@ -108,8 +131,8 @@ App.acts.mcheck = () => { const m = man(); if (!issueOk(m)) { U.toast('期号是
   setTimeout(() => { const el = document.querySelector('#editor .prize'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 40); };
 App.acts.msave = async (a) => { const m = man(); if (!issueOk(m)) { U.toast('期号是 7 位数字，如 ' + (Data.latest(m.g) ? Data.latest(m.g).code : '2026124')); return; }
   const kind = a.dataset.k;
-  await App.addTicket({ id: App.uid(), game: m.g, issue: m.issue, lines: m.lines, mult: m.mult, add: !!(LT.GAMES[m.g].addPrice && m.add), kind, method: m.scan ? '拍票录入' : '手动录入', createdAt: Date.now() });
-  U.toast(kind === 'real' ? '已存为实票' : '已存为模拟'); S.check.man = newMan(m.g); S.check.scan = { st: 'idle' }; };
+  await App.addTicket({ id: App.uid(), game: m.g, issue: m.issue, lines: m.lines, mult: m.mult, add: !!(LT.GAMES[m.g].addPrice && m.add), kind, method: m.scan ? '拍票录入' : '手动录入', drawDate: m.drawDate || '', createdAt: Date.now() });
+  U.toast(kind === 'real' ? '已存为实票' : '已存为模拟'); S.check.man = newMan(m.g); S.check.scan = { st: 'idle' }; S.check.raw = null; };
 App.inputs['m-issue'] = (t) => { const m = man(); const v = t.value.replace(/\D/g, '').slice(0, 7); if (v !== t.value) t.value = v; m.issue = v; m.show = false; return false; };
 App.inputs['m-mult'] = (t) => { man().mult = Math.min(99, Math.max(1, parseInt(t.value, 10) || 1)); man().show = false; return false; };
 App.changes['m-mult'] = () => true;
@@ -121,17 +144,17 @@ App.acts.snap = async (a) => {
   try { photo = await Cam.getPhoto({ quality: 85, resultType: 'uri', source: a.dataset.src, correctOrientation: true, width: 2200, saveToGallery: false }); }
   catch (e) { if (!/cancel/i.test(String(e && (e.message || e)))) U.toast('没拍成：' + (e.message || e)); return 'noRender'; }
   const img = photo.webPath || (window.Capacitor.convertFileSrc ? window.Capacitor.convertFileSrc(photo.path) : '');
-  S.check.scan = { st: 'busy', img }; App.render();
+  S.check.scan = { st: 'busy', img }; S.check.raw = null; App.render();
   try {
     const r = await Ocr.recognize({ path: photo.path || photo.webPath });
     const text = (r && r.text) || '';
-    const d = window.OCR.parseTicket(text, S.check.game);
-    if (!d.ok) { S.check.scan = { st: 'fail', img, msg: d.msg, raw: text };
-      if (d.game) { S.check.game = d.game; S.check.man = null; } }
-    else { App.loadDraft(d, { img, notes: d.notes, raw: text }); S.check.scan = { st: 'idle' };
+    S.check.raw = { text, img };
+    const d = window.OCR.parseTicket(text);   // 彩种由票面决定，不看页面上选的
+    if (!d.ok) { S.check.scan = { st: 'fail', img, msg: d.msg }; S.check.game = d.game || null; S.check.man = null; }
+    else { App.loadDraft(d, { img, notes: d.notes, how: d.how, amount: d.amount }); S.check.scan = { st: 'idle' };
       U.toast(`认出${LT.GAMES[d.game].name}，请核对号码`);
       setTimeout(() => { const el = document.getElementById('editor'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60); }
-  } catch (e) { S.check.scan = { st: 'fail', img, msg: '识别出错：' + (e.message || e) + '。可以用下面的手动输入。' }; }
+  } catch (e) { S.check.scan = { st: 'fail', img, msg: '识别出错：' + (e.message || e) + '。可以点下面的彩种手动输入。' }; }
   App.render(); return 'noRender';
 };
 })();

@@ -131,6 +131,22 @@ function nextIssue(g, draws, now) {
   return null;
 }
 // 最近一次已经开过奖（开奖后 20 分钟）的日期，用来判断要不要去取新数据
+// 某一期的开奖日期：已开奖的直接查，没开奖的按开奖日往后推（春节休市等会有偏差，票面印的日期优先）
+function issueDate(g, code, draws) {
+  const hit = (draws || []).find(x => x.code === code); if (hit) return hit.date;
+  const G = GAMES[g]; const last = draws && draws[draws.length - 1];
+  if (!last || !/^\d{7}$/.test(code) || code <= last.code) return null;
+  let d = Date.UTC(+last.date.slice(0, 4), +last.date.slice(5, 7) - 1, +last.date.slice(8, 10));
+  let year = +last.code.slice(0, 4), num = +last.code.slice(4);
+  for (let i = 0; i < 800; i++) {
+    d += 86400e3; const dd = new Date(d);
+    if (!G.days.includes(dd.getUTCDay())) continue;
+    if (dd.getUTCFullYear() !== year) { year = dd.getUTCFullYear(); num = 0; }
+    num++; const c = year + String(num).padStart(3, '0');
+    if (c === code) return ymd(dd); if (c > code) return null;
+  }
+  return null;
+}
 function lastDueDate(g, now) {
   const G = GAMES[g]; const bj = bjNow(now); const mins = bj.getUTCHours() * 60 + bj.getUTCMinutes();
   let d = Date.UTC(bj.getUTCFullYear(), bj.getUTCMonth(), bj.getUTCDate());
@@ -484,7 +500,7 @@ function generate(g, o, count) {
 const API = { GAMES, ORDER, PLAY_NAME, KENO_NAME, KENO_TABLE, CONDITIONS, METHODS, LEVEL_ORDER,
   range, asc, uniq, nCk, pad2, fmtMoney, seededRand, cryptoRand,
   bazi, zodiacOf, zodiacNumbers, ZODIAC_ORDER, birthdayNumbers, birthdayDigits, wxOfNumber, numbersOfWx, HETU, SHENG_BY, WX,
-  nextIssue, lastDueDate, drawsToday, issueShort, bjNow, ymd,
+  nextIssue, issueDate, lastDueDate, drawsToday, issueShort, bjNow, ymd,
   lineBets, lineIssues, ticketBets, ticketCost, evalLine, checkTicket, amountOf, sortLevels, contextFor, ssqSpecialActive, dltBoost,
   stats, popularReason, avoidApplies, genOne, generate, lineKey };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;

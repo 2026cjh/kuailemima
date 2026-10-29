@@ -237,6 +237,8 @@ input:focus,select:focus{border-color:var(--accent)}
 .prize-total b{font:700 28px/1 var(--f-num);color:var(--gold)}
 .note{font-size:13px;color:var(--ink-2);background:var(--glass);border:1px solid var(--edge);border-radius:14px;padding:9px 12px}
 .note.warn{border-color:color-mix(in srgb,var(--gold) 40%,transparent)}
+.note.wait{border-color:color-mix(in srgb,var(--accent) 45%,transparent);background:var(--accent-soft);color:var(--ink)}
+.note.wait b{font-weight:700}
 .mlines{display:grid;gap:7px}
 .mline{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .spin{width:20px;height:20px;border-radius:50%;border:2px solid var(--hair);border-top-color:var(--accent);animation:sp 1s linear infinite;flex:none}
