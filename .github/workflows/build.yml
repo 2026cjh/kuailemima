@@ -79,13 +79,20 @@ jobs:
           name: kuailemima-apk
           path: kuailemima-1.0.*.apk
 
+      - name: 生成发布说明
+        if: env.SIGN == '1'
+        env:
+          VER: 1.0.${{ github.run_number }}
+          CHANGES: ${{ github.event.head_commit.message }}
+        run: node tools/release-notes.js > release-notes.md
+
       - name: 发布到 Releases
         if: env.SIGN == '1'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: 快乐密码 1.0.${{ github.run_number }}
-          body: 安卓安装包，下载后在手机上打开安装。kuailemima.apk 和带版本号的是同一个文件。
+          body_path: release-notes.md
           files: |
             kuailemima-1.0.${{ github.run_number }}.apk
             kuailemima.apk
