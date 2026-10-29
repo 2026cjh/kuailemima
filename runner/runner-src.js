@@ -63,8 +63,8 @@ addEventListener('check', async function (resolve, reject, args) {
       var wins = [], lose = 0;
       fresh.forEach(function (d) {
         tickets.filter(function (t) { return t.game === g && t.issue === d.code; }).forEach(function (t) {
-          var r = LT.checkTicket(t, d, ctxs[g] || {});
-          if (r.fixed > 0 || r.floating.length) wins.push({ t: t, r: r, d: d }); else lose++;
+          var r = LT.ticketResult(t, d, ctxs[g] || {});
+          if (r.won) wins.push({ t: t, r: r, d: d }); else lose++;
         });
       });
       if (subs.indexOf(g) >= 0) {
@@ -73,9 +73,9 @@ addEventListener('check', async function (resolve, reject, args) {
         notify(g + newest.code, G.name + ' 第' + LT.issueShort(g, newest.code) + '期开奖', body);
       }
       if (cfg.win) wins.forEach(function (w) {
-        var lv = LT.sortLevels(Object.keys(w.r.tally)).map(function (k) { return k + '×' + w.r.tally[k]; }).join('，');
-        var amt = w.r.floating.length ? '含浮动奖，金额看官方公告' : '奖金 ' + LT.fmtMoney(w.r.fixed) + ' 元';
-        notify('win' + w.t.id + w.d.code, (w.t.kind === 'sim' ? '模拟票中奖了' : '中奖了！') + G.name + ' 第' + LT.issueShort(g, w.d.code) + '期', lv + '，' + amt);
+        var lv = w.r.levels.map(function (l) { return l.name + (l.count > 1 ? ' ' + l.count + ' 注' : ''); }).join('、');
+        var amt = w.r.unknown.length ? (w.r.total > 0 ? '已确定奖金 ' + LT.fmtMoney(w.r.total) + ' 元，' : '') + w.r.unknown.join('、') + '金额看官方公告' : '奖金 ' + LT.fmtMoney(w.r.total) + ' 元';
+        notify('win' + w.t.id + w.d.code, (w.t.kind === 'sim' ? '模拟票中奖了：' : '恭喜中奖！') + G.name + ' 第' + LT.issueShort(g, w.d.code) + '期', '中了' + lv + (w.r.mult > 1 ? '（' + w.r.mult + '倍）' : '') + '，' + amt);
       });
     }
     kvSet('seen', JSON.stringify(seen));

@@ -308,3 +308,21 @@ table.trend tbody tr:nth-child(5n) td{border-bottom-color:color-mix(in srgb,var(
 .loading{display:flex;gap:10px;align-items:center;justify-content:center;padding:60px 0;color:var(--ink-2)}
 .empty{padding:22px 16px;text-align:center;color:var(--ink-2);font-size:14px;display:grid;gap:8px;justify-items:center}
 @media (prefers-reduced-motion:reduce){.sub{transition:none}.spin{animation-duration:3s}.switch,.switch::after{transition:none}}
+
+/* 对奖结果 */
+.prize{display:grid;gap:10px;padding:14px;border-radius:18px;background:var(--glass);border:1px solid var(--edge)}
+.prize-hero{display:grid;gap:4px}
+.prize-hero>b{font-size:19px;font-weight:750}
+.prize-hero p{font-size:14px;color:var(--ink-2)}
+.prize.won{border-color:color-mix(in srgb,var(--red) 35%,transparent);background:color-mix(in srgb,var(--red) 6%,var(--glass))}
+.prize.won .prize-hero>b{color:var(--red)}
+.prize-sum{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:4px;padding-top:8px;border-top:1px dashed var(--hair)}
+.prize-sum small{font-size:12px;color:var(--ink-3)}
+.prize-sum b{font:750 26px/1.1 var(--f-num);color:var(--red)}
+.plines{display:grid;gap:8px}
+.pline{display:grid;gap:4px}
+.pline .hit{color:var(--red);font-weight:650}
+.ptable .meta{display:block;font-size:11.5px;font-weight:500;color:var(--ink-3);margin-top:2px;white-space:nowrap}
+a.btn{text-decoration:none}
+.upd{border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.upd b{font-size:16px}

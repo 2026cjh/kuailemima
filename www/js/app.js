@@ -8,7 +8,8 @@ const RUNNER = 'com.cjh.hongbo.check';
 
 const S = window.S = {
   tab: 'home', sub: null, ready: false, refreshing: false,
-  settings: { theme: 'auto', subs: { ssq: true, dlt: true }, winAlert: true, notifAsked: false },
+  settings: { theme: 'auto', subs: { ssq: true, dlt: true }, winAlert: true, notifAsked: false, updAt: 0, upd: null },
+  update: null,
   tickets: [], profile: { birthdays: [] }, ack: {},
   pform: { name: '', date: '', hour: '' },
   pick: { game: 'ssq', method: 'random', count: 5, avoid: true, k: 5, play: 'zx', add: false, win: 50, lock: {}, lockOpen: false, results: null, zodiac: null, selP: [], wxP: null, words: '' },
@@ -43,32 +44,53 @@ App.uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
 App.evalTicket = (t) => {
   const d = Data.find(t.game, t.issue); if (!d) return { pending: true };
   const ctx = LT.contextFor(t.game, t.issue, Data.draws[t.game]);
-  return Object.assign(LT.checkTicket(t, d, ctx), { draw: d, ctx });
+  return Object.assign(LT.ticketResult(t, d, ctx), { draw: d, ctx });
 };
 App.statusBadge = (t) => {
   const r = App.evalTicket(t);
   if (r.pending) return '<span class="badge wait">待开奖</span>';
-  if (r.floating.length) return `<span class="badge big">中${esc(r.floating.join('、'))}</span>`;
-  if (r.fixed > 0) return `<span class="badge win">中奖 ${LT.fmtMoney(r.fixed)} 元</span>`;
+  if (r.won && r.unknown.length) return `<span class="badge big">中${esc(r.levels[0].name)}</span>`;
+  if (r.won) return `<span class="badge ${r.levels.some(l => l.floating) ? 'big' : 'win'}">中奖 ${App.yuan(r.total)} 元</span>`;
   return '<span class="badge none">未中奖</span>';
 };
+App.yuan = (v) => Number.isInteger(v) ? v.toLocaleString('en-US') : String(Math.round(v * 100) / 100);
 App.prizeHTML = (t) => {
   const g = t.game, G = LT.GAMES[g]; if (!t.issue) return '<p class="note warn">没有期号，补上期号才能对奖。</p>';
   const r = App.evalTicket(t);
   if (r.pending) return App.waitHTML(g, t.issue, t.drawDate);
-  const d = r.draw; const names = LT.sortLevels(Object.keys(r.tally));
-  let h = `<div class="prize"><div class="row between"><span class="small muted">第 ${esc(LT.issueShort(g, d.code))} 期开奖 · ${mdw(d.date)}</span></div>${U.drawBalls(g, d, 'sm')}`;
-  if (!names.length) h += `<p>这张票没有中奖，共 ${r.bets} 注。</p>`;
-  else {
-    names.forEach(n => { const a = LT.amountOf(g, n, r.ctx);
-      h += `<div class="prize-row"><span>${esc(n)} × ${r.tally[n]}${r.mult > 1 ? ` × ${r.mult}倍` : ''}</span><span class="num">${a == null ? '浮动奖' : LT.fmtMoney(a) + ' 元/注'}</span></div>`; });
-    h += `<div class="prize-total"><span>固定奖金合计</span><b>${LT.fmtMoney(r.fixed)} 元</b></div>`;
-    if (r.floating.length) h += `<p class="note">中了${esc(r.floating.join('、'))}！浮动奖金额以官方公告为准${t.add ? '，追加投注另得基本奖金的 80%' : ''}。单注 1 万元以上要到当地彩票中心兑奖。</p>`;
-    if (g === 'dlt' && r.ctx.boost == null && r.fixedAlt !== r.fixed) h += `<p class="note">没查到上期奖池。如果上期奖池达到 8 亿，三至七等奖上调，合计是 ${LT.fmtMoney(r.fixedAlt)} 元。</p>`;
-    if (g === 'dlt' && r.ctx.boost) h += '<p class="small muted">上期奖池达 8 亿，三至七等奖已按上调后的金额计算。</p>';
-    if (r.tally['福运奖']) h += '<p class="small muted">本期双色球在执行奖池特别规定，中 3 个红球有 5 元福运奖。</p>';
+  const d = r.draw, m = r.mult, short = esc(LT.issueShort(g, d.code));
+  let h = `<div class="prize ${r.won ? 'won' : 'lost'}">`;
+  if (r.won) {
+    const names = r.levels.map(l => l.name + (l.count > 1 ? ` ${l.count} 注` : '')).join('、');
+    h += `<div class="prize-hero"><b>恭喜你中奖了！</b><p>中了${esc(names)}${m > 1 ? `，${m} 倍` : ''}</p>
+      <div class="prize-sum"><small>${r.unknown.length ? '已确定的奖金（税前）' : '奖金合计（税前）'}</small><span><b class="num">${App.yuan(r.total)}</b> 元</span></div></div>`;
+  } else h += `<div class="prize-hero"><b>本期没有中奖</b><p>共 ${r.bets} 注${m > 1 ? ` × ${m} 倍` : ''}，下次好运。</p></div>`;
+  h += `<div class="small muted">第 ${short} 期开奖号码 · ${mdw(d.date)}</div>${U.drawBalls(g, d, 'sm')}`;
+  // 每一行：中了几个、中了什么奖（实心是中的号码）
+  h += `<div class="small muted">你的号码</div><div class="plines">${t.lines.map(L => { const lr = LT.evalLine(g, L, d, r.ctx); const lv = LT.sortLevels(Object.keys(lr)); const hit = App.hitText(g, L, d);
+    return `<div class="pline">${U.lineBalls(g, L, d)}<span class="small ${lv.length ? 'hit' : 'faint'}">${hit}${hit ? ' · ' : ''}${lv.length ? lv.map(n => esc(n) + (lr[n] > 1 ? ` ${lr[n]} 注` : '')).join('、') : '没中'}</span></div>`; }).join('')}</div>`;
+  if (r.won) {
+    h += `<div class="tbl"><table class="ptable"><thead><tr><th>奖级</th><th class="r">每注奖金</th><th class="r">小计（元）</th></tr></thead><tbody>${r.levels.map(l =>
+      `<tr><td class="lv">${esc(l.name)}<small class="meta">${l.count} 注${m > 1 ? ` × ${m} 倍` : ''}</small></td><td class="r num">${l.per == null ? '待公布' : App.yuan(l.per)}${l.addPer ? `<small class="meta">追加 +${App.yuan(l.addPer)}</small>` : ''}</td><td class="r amt">${l.sub == null ? '—' : App.yuan(l.sub)}</td></tr>`).join('')}</tbody></table></div>`;
+    const notes = [];
+    if (r.unknown.length) notes.push(`${esc(r.unknown.join('、'))}的奖金官方还没公布，公布后这里自动更新。`);
+    if (r.levels.some(l => l.per != null && l.per + (l.addPer || 0) > 10000)) notes.push(`单注奖金超过 1 万元要缴 20% 个人偶然所得税，并到当地${G.org}中心兑奖，表里是税前金额。`);
+    else notes.push('单注 1 万元以下，一般在彩票店就能兑奖。');
+    const dl = new Date(Date.parse(d.date) + 60 * 864e5); notes.push(`兑奖期限是开奖后 60 天（到 ${dl.getUTCFullYear()}年${dl.getUTCMonth() + 1}月${dl.getUTCDate()}日），过期作废。`);
+    if (g === 'dlt' && r.ctx.boost == null && r.fixedAlt !== r.fixed) notes.push(`没查到上期奖池。如果上期奖池达到 8 亿，三至七等奖上调，固定奖合计是 ${App.yuan(r.fixedAlt)} 元。`);
+    if (g === 'dlt' && r.ctx.boost) notes.push('上期奖池达 8 亿，三至七等奖已按上调后的金额计算。');
+    if (r.tally['福运奖']) notes.push('本期双色球在执行奖池特别规定，中 3 个红球有 5 元福运奖。');
+    h += notes.map(x => `<p class="tiny muted">${x}</p>`).join('');
   }
   return h + '</div>';
+};
+App.hitText = (g, L, d) => {
+  const G = LT.GAMES[g], F = [...(L.fd || []), ...(L.f || [])], B = [...(L.bd || []), ...(L.b || [])];
+  if (G.kind === 'lotto') { const hf = F.filter(x => d.n.includes(x)).length;
+    if (g === 'qlc') return `中 ${hf} 个${F.some(x => d.s.includes(x)) ? ' + 特别号' : ''}`;
+    const hb = B.filter(x => d.s.includes(x)).length; return g === 'ssq' ? `红球中 ${hf} 个，蓝球中 ${hb} 个` : `前区中 ${hf} 个，后区中 ${hb} 个`; }
+  if (G.kind === 'keno') return `中 ${F.filter(x => d.n.includes(x)).length} 个`;
+  return '';
 };
 // 还没开奖：算出开奖时间，提醒用户；比最新一期还早却查不到，多半是期号认错了
 App.waitHTML = (g, issue, printed) => {
@@ -100,7 +122,7 @@ App.closeSub = () => { S.sub = null; render(); };
 /* ---------- 开奖（首页） ---------- */
 function gameBadge(g) {
   const ts = S.tickets.filter(t => t.game === g); if (!ts.length) return '';
-  let wait = 0, win = 0; ts.forEach(t => { const r = App.evalTicket(t); if (r.pending) wait++; else if (r.fixed > 0 || r.floating.length) { if (!S.ack[t.id]) win++; } });
+  let wait = 0, win = 0; ts.forEach(t => { const r = App.evalTicket(t); if (r.pending) wait++; else if (r.won) { if (!S.ack[t.id]) win++; } });
   if (win) return `<span class="badge win">${win} 张中奖</span>`;
   return wait ? `<span class="badge wait">${wait} 张待开奖</span>` : '';
 }
@@ -112,6 +134,7 @@ App.pages.home = () => {
     <button type="button" class="icon-btn glass" data-act="refresh" aria-label="刷新开奖">${S.refreshing ? '<span class="spin"></span>' : I.refresh}</button></header>`;
   if (tonight.length) h += `<div class="tonight">${tonight.map(g => { const [hh, mm] = LT.GAMES[g].time.split(':').map(Number); const done = mins >= hh * 60 + mm;
     return `<span>${LT.GAMES[g].name} ${done ? '已开奖' : LT.GAMES[g].time}</span>`; }).join('')}</div>`;
+  h += App.updateCard();
   if (wins.length) h += `<button type="button" class="glass card" data-act="showwins" style="text-align:left"><div class="row between"><b>你有 ${wins.length} 张票中奖了</b><span class="badge win">查看</span></div></button>`;
   LT.ORDER.forEach(g => {
     const G = LT.GAMES[g], d = Data.latest(g), n = Data.next(g), m = Data.meta[g];
@@ -202,14 +225,14 @@ App.pages.detail = () => {
 
 /* ---------- 中奖提示 ---------- */
 function unackedWins() {
-  return S.tickets.filter(t => { if (S.ack[t.id]) return false; const r = App.evalTicket(t); return !r.pending && (r.fixed > 0 || r.floating.length); });
+  return S.tickets.filter(t => { if (S.ack[t.id]) return false; const r = App.evalTicket(t); return !r.pending && r.won; });
 }
 App.showWins = () => {
   const ws = unackedWins(); if (!ws.length) return;
   const el = $('#sheet');
   el.innerHTML = `<div class="sheet-back" data-act="closesheet"><div class="sheet glass thick" data-stop="1"><h2>中奖了</h2>${ws.map(t => { const G = LT.GAMES[t.game]; const r = App.evalTicket(t);
     return `<div class="card glass"><div class="tk-head"><span class="gname">${G.name}</span><span class="small muted num">${esc(LT.issueShort(t.game, t.issue))}期</span><span class="badge ${t.kind === 'sim' ? 'sim' : 'real'}">${t.kind === 'sim' ? '模拟' : '实票'}</span><span class="grow"></span>${App.statusBadge(t)}</div>
-      <p class="small">${LT.sortLevels(Object.keys(r.tally)).map(k => esc(k) + ' × ' + r.tally[k]).join('，')}</p></div>`; }).join('')}
+      <p class="small">中了${r.levels.map(l => esc(l.name) + (l.count > 1 ? ` ${l.count} 注` : '')).join('、')}${r.mult > 1 ? `，${r.mult} 倍` : ''}${r.won && !r.unknown.length ? `，奖金 <b>${App.yuan(r.total)}</b> 元` : ''}</p></div>`; }).join('')}
     ${ws.some(t => t.kind === 'sim') ? '<p class="tiny faint" style="text-align:center">模拟票没有真的买，只是记录这组号码会中多少。</p>' : ''}
     <button type="button" class="btn primary" data-act="ackwins">知道了</button></div></div>`;
   U.fitBalls(el);
@@ -223,14 +246,14 @@ App.acts.closesheet = (a, e) => { if (e.target === a) $('#sheet').innerHTML = ''
 App.pages.mine = () => {
   const seg = S.mine.seg; const all = [...S.tickets].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); const ts = all.filter(t => (t.kind || 'real') === seg);
   let cost = 0, won = 0, wait = 0, big = 0, hit = 0;
-  ts.forEach(t => { cost += LT.ticketCost(t); const r = App.evalTicket(t); if (r.pending) wait++; else { won += r.fixed; if (r.floating.length) big++; if (r.fixed > 0 || r.floating.length) hit++; } });
+  ts.forEach(t => { cost += LT.ticketCost(t); const r = App.evalTicket(t); if (r.pending) wait++; else { won += r.total; if (r.levels.some(l => l.floating)) big++; if (r.won) hit++; } });
   let h = `<header class="lt"><div><h1>我的</h1><p>${all.length ? `实票 ${all.filter(t => (t.kind || 'real') === 'real').length} 张 · 模拟 ${all.filter(t => t.kind === 'sim').length} 张` : '投注记录和家人生日'}</p></div>
     <button type="button" class="icon-btn glass" data-act="settings" aria-label="设置">${I.gear}</button></header>
     <div class="seg"><button type="button" data-act="mseg" data-v="real" aria-pressed="${seg === 'real'}">实票</button><button type="button" data-act="mseg" data-v="sim" aria-pressed="${seg === 'sim'}">模拟</button></div>`;
   const net = Math.round((won - cost) * 10) / 10;
   h += `<div class="glass card"><div class="sum">
     <div><b>${cost}</b><small>${seg === 'real' ? '共投入（元）' : '假如都买（元）'}</small></div>
-    <div><b style="color:var(--gold)">${LT.fmtMoney(Math.round(won * 10) / 10)}</b><small>固定奖（元）</small></div>
+    <div><b style="color:var(--gold)">${LT.fmtMoney(Math.round(won * 10) / 10)}</b><small>奖金（元）</small></div>
     <div><b style="color:${net >= 0 ? 'var(--good)' : 'var(--bad)'}">${net > 0 ? '+' : ''}${LT.fmtMoney(net)}</b><small>盈亏（元）</small></div></div>
     <div class="row between small muted"><span>${wait} 张待开奖 · ${hit} 张中过奖</span>${big ? `<span class="badge big">${big} 张中浮动奖</span>` : ''}</div>
     ${seg === 'sim' ? '<p class="tiny faint">模拟票是选号后没去买的号，用来看看选号方式的表现。</p>' : ''}</div>`;
@@ -294,7 +317,8 @@ App.pages.settings = () => {
     ${S.diag ? `<div class="rawtext">${esc(Object.entries(HB.Data.lastRaw).map(([k, v]) => `[${k}] ${v.status} ${new Date(v.at).toLocaleTimeString()}${v.ms != null ? ' 用时' + (v.ms / 1000).toFixed(1) + '秒' : ''}\n${v.url}\n${v.text}`).join('\n\n') || '还没有请求记录。点"全部重新获取"后再看。')}</div>` : ''}</div>`;
   h += `<div class="sec-title">关于</div><div class="glass card"><p class="small">每一期开奖都是独立随机的，这里的任何选号方式中奖概率都和机选一样，图个乐趣。理性购彩，量力而行。</p>
     <p class="small muted">开奖数据来自中国福彩网（双色球、福彩3D、快乐8、七乐彩）和中国体彩网（大乐透、排列3、排列5、七星彩）。兑奖以官方公告为准。</p>
-    <p class="tiny faint">快乐密码 ${esc(window.APP_VERSION || '')}</p></div>`;
+    <div class="row between"><p class="tiny faint">快乐密码 ${esc(window.APP_VERSION || '')}</p><button type="button" class="btn sm" data-act="chkupd" ${S.checkingUpd ? 'disabled' : ''}>${S.checkingUpd ? '正在检查…' : '检查更新'}</button></div>
+    ${S.update ? App.updateCard() : ''}</div>`;
   return h + '</div>';
 };
 function dayText(g) { const d = LT.GAMES[g].days; if (d.length === 7) return '每天'; return '每周' + d.slice().sort((a, b) => (a || 7) - (b || 7)).map(x => '日一二三四五六'[x]).join('、'); }
@@ -344,6 +368,30 @@ function applyTheme() {
   SB.setStyle({ style: dark ? 'DARK' : 'LIGHT' }).catch(() => {});
   SB.setBackgroundColor({ color: dark ? '#060B0C' : '#ECF1EF' }).catch(() => {});
 }
+
+/* ---------- 检查更新：看 GitHub 上最新发布的安装包 ---------- */
+const REPO = '2026cjh/kuailemima';
+const verNum = (v) => String(v || '').replace(/^v/, '').split('.').map(x => parseInt(x, 10) || 0);
+const newer = (a, b) => { const x = verNum(a), y = verNum(b); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
+async function checkUpdate(manual) {
+  if (!manual && Date.now() - (S.settings.updAt || 0) < 20 * 3600e3) return;
+  if (manual) { S.checkingUpd = true; render(); }
+  try {
+    const res = await Promise.race([fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('连接超时')), 15000))]);
+    if (!res.ok) throw new Error('服务器返回 ' + res.status);
+    const j = await res.json(); const ver = String(j.tag_name || '').replace(/^v/, ''); const apk = (j.assets || []).find(a => /\.apk$/i.test(a.name));
+    S.settings.updAt = Date.now();
+    S.settings.upd = apk && newer(ver, window.APP_VERSION) ? { ver, url: apk.browser_download_url, size: apk.size } : null;
+    S.update = S.settings.upd; Store.set('settings', S.settings);
+    if (manual) U.toast(S.update ? `发现新版本 ${ver}` : '已经是最新版本');
+  } catch (e) { if (manual) U.toast('检查更新失败：' + (e.message || e)); }
+  S.checkingUpd = false; render();
+}
+App.acts.chkupd = () => { checkUpdate(true); return 'noRender'; };
+App.acts.updlater = () => { S.update = null; };
+App.updateCard = () => S.update ? `<div class="glass card upd"><div class="row between"><div><b>发现新版本 ${esc(S.update.ver)}</b><p class="tiny muted">当前 ${esc(window.APP_VERSION || '')}${S.update.size ? ` · 安装包 ${Math.round(S.update.size / 1048576)} MB` : ''}。下载后点安装，覆盖升级，记录都保留。</p></div></div>
+  <div class="row"><a class="btn primary" href="${esc(S.update.url)}">下载更新</a><button type="button" class="btn ghost" data-act="updlater">以后再说</button></div></div>` : '';
 
 /* ---------- 刷新 ---------- */
 async function refresh(force) {
@@ -412,6 +460,8 @@ async function start() {
     const LN = plugin('LocalNotifications'); if (LN) LN.addListener('localNotificationActionPerformed', () => App.go('home')).catch(() => {});
   }
   refresh(false);
+  if (S.settings.upd && newer(S.settings.upd.ver, window.APP_VERSION)) S.update = S.settings.upd;
+  if (isNative) setTimeout(() => checkUpdate(false), 4000);
 }
 App.start = start;
 })();

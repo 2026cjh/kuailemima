@@ -322,6 +322,22 @@ function checkTicket(t, draw, ctx) {
   const m = t.mult || 1;
   return { tally, fixed: Math.round(fixed * m * 10) / 10, fixedAlt: Math.round(fixedAlt * m * 10) / 10, floating: uniq(floating), bets: ticketBets(t), mult: m };
 }
+// 整张票的奖金明细：固定奖按规则算；浮动奖（一、二等奖等）用开奖公告里的金额；大乐透追加另加
+function ticketResult(t, draw, ctx) {
+  const g = t.game, base = checkTicket(t, draw, ctx), m = base.mult, grades = draw.grades || [];
+  const clean = (s) => String(s).replace(/[（(]?追加[)）]?/g, '').trim();
+  const gradeAmt = (n, add) => { const x = grades.find(q => (add ? /追加/.test(q.name) : !/追加/.test(q.name)) && clean(q.name) === n); return x && x.amount ? x.amount : null; };
+  const levels = sortLevels(Object.keys(base.tally)).map(name => {
+    const count = base.tally[name]; let per = amountOf(g, name, ctx); const floating = per == null;
+    if (floating) per = gradeAmt(name, false);
+    let addPer = null;   // 大乐透追加：一、二等奖另得基本奖金的 80%
+    if (t.add && g === 'dlt' && floating) { addPer = gradeAmt(name, true); if (addPer == null && per != null) addPer = Math.floor(per * 0.8); }
+    const sub = per == null ? null : Math.round((per + (addPer || 0)) * count * m * 100) / 100;
+    return { name, count, per, addPer, floating, sub };
+  });
+  const total = Math.round(levels.reduce((s, l) => s + (l.sub || 0), 0) * 100) / 100;
+  return Object.assign(base, { levels, total, unknown: levels.filter(l => l.sub == null).map(l => l.name), won: levels.length > 0 });
+}
 function sortLevels(names) {
   const rank = (n) => { const i = LEVEL_ORDER.indexOf(n); if (i >= 0) return i;
     const m = /^选(.)中(\d+)$/.exec(n); return m ? 100 - +m[2] : 999; };
@@ -501,7 +517,7 @@ const API = { GAMES, ORDER, PLAY_NAME, KENO_NAME, KENO_TABLE, CONDITIONS, METHOD
   range, asc, uniq, nCk, pad2, fmtMoney, seededRand, cryptoRand,
   bazi, zodiacOf, zodiacNumbers, ZODIAC_ORDER, birthdayNumbers, birthdayDigits, wxOfNumber, numbersOfWx, HETU, SHENG_BY, WX,
   nextIssue, issueDate, lastDueDate, drawsToday, issueShort, bjNow, ymd,
-  lineBets, lineIssues, ticketBets, ticketCost, evalLine, checkTicket, amountOf, sortLevels, contextFor, ssqSpecialActive, dltBoost,
+  lineBets, lineIssues, ticketBets, ticketCost, evalLine, checkTicket, ticketResult, amountOf, sortLevels, contextFor, ssqSpecialActive, dltBoost,
   stats, popularReason, avoidApplies, genOne, generate, lineKey };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 root.LT = API;

@@ -132,6 +132,22 @@ function nextIssue(g, draws, now) {
   return null;
 }
 // 最近一次已经开过奖（开奖后 20 分钟）的日期，用来判断要不要去取新数据
+// 某一期的开奖日期：已开奖的直接查，没开奖的按开奖日往后推（春节休市等会有偏差，票面印的日期优先）
+function issueDate(g, code, draws) {
+  const hit = (draws || []).find(x => x.code === code); if (hit) return hit.date;
+  const G = GAMES[g]; const last = draws && draws[draws.length - 1];
+  if (!last || !/^\d{7}$/.test(code) || code <= last.code) return null;
+  let d = Date.UTC(+last.date.slice(0, 4), +last.date.slice(5, 7) - 1, +last.date.slice(8, 10));
+  let year = +last.code.slice(0, 4), num = +last.code.slice(4);
+  for (let i = 0; i < 800; i++) {
+    d += 86400e3; const dd = new Date(d);
+    if (!G.days.includes(dd.getUTCDay())) continue;
+    if (dd.getUTCFullYear() !== year) { year = dd.getUTCFullYear(); num = 0; }
+    num++; const c = year + String(num).padStart(3, '0');
+    if (c === code) return ymd(dd); if (c > code) return null;
+  }
+  return null;
+}
 function lastDueDate(g, now) {
   const G = GAMES[g]; const bj = bjNow(now); const mins = bj.getUTCHours() * 60 + bj.getUTCMinutes();
   let d = Date.UTC(bj.getUTCFullYear(), bj.getUTCMonth(), bj.getUTCDate());
@@ -306,6 +322,22 @@ function checkTicket(t, draw, ctx) {
         const alt = g === 'dlt' && ctx && ctx.boost == null ? (FIXED.dltBoost[name] ?? a) : a; fixedAlt += alt * r[name]; } } });
   const m = t.mult || 1;
   return { tally, fixed: Math.round(fixed * m * 10) / 10, fixedAlt: Math.round(fixedAlt * m * 10) / 10, floating: uniq(floating), bets: ticketBets(t), mult: m };
+}
+// 整张票的奖金明细：固定奖按规则算；浮动奖（一、二等奖等）用开奖公告里的金额；大乐透追加另加
+function ticketResult(t, draw, ctx) {
+  const g = t.game, base = checkTicket(t, draw, ctx), m = base.mult, grades = draw.grades || [];
+  const clean = (s) => String(s).replace(/[（(]?追加[)）]?/g, '').trim();
+  const gradeAmt = (n, add) => { const x = grades.find(q => (add ? /追加/.test(q.name) : !/追加/.test(q.name)) && clean(q.name) === n); return x && x.amount ? x.amount : null; };
+  const levels = sortLevels(Object.keys(base.tally)).map(name => {
+    const count = base.tally[name]; let per = amountOf(g, name, ctx); const floating = per == null;
+    if (floating) per = gradeAmt(name, false);
+    let addPer = null;   // 大乐透追加：一、二等奖另得基本奖金的 80%
+    if (t.add && g === 'dlt' && floating) { addPer = gradeAmt(name, true); if (addPer == null && per != null) addPer = Math.floor(per * 0.8); }
+    const sub = per == null ? null : Math.round((per + (addPer || 0)) * count * m * 100) / 100;
+    return { name, count, per, addPer, floating, sub };
+  });
+  const total = Math.round(levels.reduce((s, l) => s + (l.sub || 0), 0) * 100) / 100;
+  return Object.assign(base, { levels, total, unknown: levels.filter(l => l.sub == null).map(l => l.name), won: levels.length > 0 });
 }
 function sortLevels(names) {
   const rank = (n) => { const i = LEVEL_ORDER.indexOf(n); if (i >= 0) return i;
@@ -485,8 +517,8 @@ function generate(g, o, count) {
 const API = { GAMES, ORDER, PLAY_NAME, KENO_NAME, KENO_TABLE, CONDITIONS, METHODS, LEVEL_ORDER,
   range, asc, uniq, nCk, pad2, fmtMoney, seededRand, cryptoRand,
   bazi, zodiacOf, zodiacNumbers, ZODIAC_ORDER, birthdayNumbers, birthdayDigits, wxOfNumber, numbersOfWx, HETU, SHENG_BY, WX,
-  nextIssue, lastDueDate, drawsToday, issueShort, bjNow, ymd,
-  lineBets, lineIssues, ticketBets, ticketCost, evalLine, checkTicket, amountOf, sortLevels, contextFor, ssqSpecialActive, dltBoost,
+  nextIssue, issueDate, lastDueDate, drawsToday, issueShort, bjNow, ymd,
+  lineBets, lineIssues, ticketBets, ticketCost, evalLine, checkTicket, ticketResult, amountOf, sortLevels, contextFor, ssqSpecialActive, dltBoost,
   stats, popularReason, avoidApplies, genOne, generate, lineKey };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 root.LT = API;
@@ -632,8 +664,8 @@ addEventListener('check', async function (resolve, reject, args) {
       var wins = [], lose = 0;
       fresh.forEach(function (d) {
         tickets.filter(function (t) { return t.game === g && t.issue === d.code; }).forEach(function (t) {
-          var r = LT.checkTicket(t, d, ctxs[g] || {});
-          if (r.fixed > 0 || r.floating.length) wins.push({ t: t, r: r, d: d }); else lose++;
+          var r = LT.ticketResult(t, d, ctxs[g] || {});
+          if (r.won) wins.push({ t: t, r: r, d: d }); else lose++;
         });
       });
       if (subs.indexOf(g) >= 0) {
@@ -642,9 +674,9 @@ addEventListener('check', async function (resolve, reject, args) {
         notify(g + newest.code, G.name + ' 第' + LT.issueShort(g, newest.code) + '期开奖', body);
       }
       if (cfg.win) wins.forEach(function (w) {
-        var lv = LT.sortLevels(Object.keys(w.r.tally)).map(function (k) { return k + '×' + w.r.tally[k]; }).join('，');
-        var amt = w.r.floating.length ? '含浮动奖，金额看官方公告' : '奖金 ' + LT.fmtMoney(w.r.fixed) + ' 元';
-        notify('win' + w.t.id + w.d.code, (w.t.kind === 'sim' ? '模拟票中奖了' : '中奖了！') + G.name + ' 第' + LT.issueShort(g, w.d.code) + '期', lv + '，' + amt);
+        var lv = w.r.levels.map(function (l) { return l.name + (l.count > 1 ? ' ' + l.count + ' 注' : ''); }).join('、');
+        var amt = w.r.unknown.length ? (w.r.total > 0 ? '已确定奖金 ' + LT.fmtMoney(w.r.total) + ' 元，' : '') + w.r.unknown.join('、') + '金额看官方公告' : '奖金 ' + LT.fmtMoney(w.r.total) + ' 元';
+        notify('win' + w.t.id + w.d.code, (w.t.kind === 'sim' ? '模拟票中奖了：' : '恭喜中奖！') + G.name + ' 第' + LT.issueShort(g, w.d.code) + '期', '中了' + lv + (w.r.mult > 1 ? '（' + w.r.mult + '倍）' : '') + '，' + amt);
       });
     }
     kvSet('seen', JSON.stringify(seen));
