@@ -328,3 +328,6 @@ a.btn{text-decoration:none}
 .upd b{font-size:16px}
 .linkbtn{color:var(--accent);font-weight:600;padding:6px 0;justify-self:center;background:none}
 .recent{text-align:left;padding:12px 14px}
+.cmp{display:grid;gap:6px}
+.cmp-lab{font-size:12px;font-weight:600;color:var(--ink-3);margin-top:2px}
+.win-line{color:var(--red)}

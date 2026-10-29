@@ -65,10 +65,7 @@ App.prizeHTML = (t) => {
     h += `<div class="prize-hero"><b>恭喜你中奖了！</b><p>中了${esc(names)}${m > 1 ? `，${m} 倍` : ''}</p>
       <div class="prize-sum"><small>${r.unknown.length ? '已确定的奖金（税前）' : '奖金合计（税前）'}</small><span><b class="num">${App.yuan(r.total)}</b> 元</span></div></div>`;
   } else h += `<div class="prize-hero"><b>本期没有中奖</b><p>共 ${r.bets} 注${m > 1 ? ` × ${m} 倍` : ''}，下次好运。</p></div>`;
-  h += `<div class="small muted">第 ${short} 期开奖号码 · ${mdw(d.date)}</div>${U.drawBalls(g, d, 'sm')}`;
-  // 每一行：中了几个、中了什么奖（实心是中的号码）
-  h += `<div class="small muted">你的号码</div><div class="plines">${t.lines.map(L => { const lr = LT.evalLine(g, L, d, r.ctx); const lv = LT.sortLevels(Object.keys(lr)); const hit = App.hitText(g, L, d);
-    return `<div class="pline">${U.lineBalls(g, L, d)}<span class="small ${lv.length ? 'hit' : 'faint'}">${hit}${hit ? ' · ' : ''}${lv.length ? lv.map(n => esc(n) + (lr[n] > 1 ? ` ${lr[n]} 注` : '')).join('、') : '没中'}</span></div>`; }).join('')}</div>`;
+  h += App.compareHTML(t, r);
   if (r.won) {
     h += `<div class="tbl"><table class="ptable"><thead><tr><th>奖级</th><th class="r">每注奖金</th><th class="r">小计（元）</th></tr></thead><tbody>${r.levels.map(l =>
       `<tr><td class="lv">${esc(l.name)}<small class="meta">${l.count} 注${m > 1 ? ` × ${m} 倍` : ''}</small></td><td class="r num">${l.per == null ? '待公布' : App.yuan(l.per)}${l.addPer ? `<small class="meta">追加 +${App.yuan(l.addPer)}</small>` : ''}</td><td class="r amt">${l.sub == null ? '—' : App.yuan(l.sub)}</td></tr>`).join('')}</tbody></table></div>`;
@@ -105,6 +102,23 @@ App.waitHTML = (g, issue, printed) => {
     when = (days === 0 ? `今晚 ${G.time}` : days === 1 ? `明晚 ${G.time}` : `${mdw(date)} ${G.time}`) + ' 开奖' + (days > 1 ? `，还有 ${days} 天` : '');
   }
   return `<p class="note wait"><b>第 ${short} 期还没开奖</b>${when ? `，${when}` : ''}。点「存为实票」，开奖后会自动对奖，中了会通知你。</p>`;
+};
+App.drawWhen = (g, issue, printed) => {
+  const G = LT.GAMES[g], date = printed || LT.issueDate(g, issue, Data.draws[g]); if (!date) return '还没开奖';
+  const now = LT.bjNow(), days = Math.round((Date.parse(date) - Date.parse(LT.ymd(now))) / 864e5);
+  const [hh, mm] = G.time.split(':').map(Number);
+  if (days === 0 && now.getUTCHours() * 60 + now.getUTCMinutes() >= hh * 60 + mm) return `今晚 ${G.time} 已开奖，号码还在获取`;
+  return (days === 0 ? `今晚 ${G.time}` : days === 1 ? `明晚 ${G.time}` : `${mdw(date)} ${G.time}`) + ' 开奖' + (days > 1 ? `，还有 ${days} 天` : '');
+};
+// 上面本期开奖号码，下面我的号码（中的号码实心），每行写中了几个、什么奖
+App.compareHTML = (t, r) => {
+  const g = t.game;
+  if (r.pending) return `<div class="cmp"><div class="cmp-lab">本期开奖号码</div><p class="small muted">${esc(App.drawWhen(g, t.issue, t.drawDate))}</p>
+    <div class="cmp-lab">我的号码</div>${App.ticketLines(t, null)}</div>`;
+  const d = r.draw;
+  return `<div class="cmp"><div class="cmp-lab">本期开奖号码 · ${mdw(d.date)}</div>${U.drawBalls(g, d, 'sm')}
+    <div class="cmp-lab">我的号码</div><div class="plines">${t.lines.map(L => { const lr = LT.evalLine(g, L, d, r.ctx); const lv = LT.sortLevels(Object.keys(lr)); const hit = App.hitText(g, L, d); const n = LT.lineBets(g, L);
+      return `<div class="pline">${U.lineBalls(g, L, d)}<span class="small ${lv.length ? 'hit' : 'faint'}">${n > 1 ? `${n} 注 · ` : ''}${hit}${hit ? ' · ' : ''}${lv.length ? lv.map(x => esc(x) + (lr[x] > 1 ? ` ${lr[x]} 注` : '')).join('、') : '没中'}</span></div>`; }).join('')}</div></div>`;
 };
 App.ticketLines = (t, draw) => `<div class="mlines">${t.lines.map(L => { const n = LT.lineBets(t.game, L);
   return `<div class="mline">${U.lineBalls(t.game, L, draw)}${n > 1 ? `<span class="tiny faint num">${n}注</span>` : ''}</div>`; }).join('')}</div>`;
@@ -260,9 +274,10 @@ App.pages.mine = () => {
   if (!ts.length) h += `<div class="glass card empty">${seg === 'real' ? '还没有实票。在"选号"出号后点"我买了"，或用右下角扫票、手动录入，开奖后这里自动显示中没中。' : '还没有模拟票。在"选号"出号后点"存为模拟"。'}</div>`;
   ts.slice(0, 200).forEach(t => { const G = LT.GAMES[t.game]; const r = App.evalTicket(t);
     h += `<div class="glass card"><div class="tk-head"><span class="gname">${G.name}</span><b class="num">${esc(LT.issueShort(t.game, t.issue) || '无期号')}期</b>
-      <span class="grow tiny muted">${esc(t.method || '')} · ${LT.ticketCost(t)}元${t.mult > 1 ? ' · ' + t.mult + '倍' : ''}${t.add ? ' · 追加' : ''}</span>${App.statusBadge(t)}</div>
-      ${App.ticketLines(t, r.pending ? null : r.draw)}
-      ${!r.pending && Object.keys(r.tally).length ? `<p class="small">${LT.sortLevels(Object.keys(r.tally)).map(k => esc(k) + '×' + r.tally[k]).join('，')}${r.mult > 1 ? `（${r.mult}倍）` : ''}</p>` : ''}
+      <span class="grow"></span>${App.statusBadge(t)}</div>
+      <div class="tiny muted" style="margin-top:-6px">${esc(t.method || '')} · ${LT.ticketCost(t)} 元${t.mult > 1 ? ' · ' + t.mult + ' 倍' : ''}${t.add ? ' · 追加' : ''}</div>
+      ${App.compareHTML(t, r)}
+      ${!r.pending && r.won ? `<p class="small win-line">中了${r.levels.map(l => esc(l.name) + (l.count > 1 ? ` ${l.count} 注` : '')).join('、')}${r.mult > 1 ? `，${r.mult} 倍` : ''}${r.unknown.length ? '' : `，奖金 <b>${App.yuan(r.total)}</b> 元（税前）`}</p>` : ''}
       <div class="row">${S.mine.confirmDel === t.id ? `<span class="small">删除这张？</span><button type="button" class="btn sm danger" data-act="del" data-id="${esc(t.id)}">删除</button><button type="button" class="btn sm ghost" data-act="delno">取消</button>`
         : `${t.kind === 'sim' ? `<button type="button" class="btn sm" data-act="toreal" data-id="${esc(t.id)}">我买了</button>` : ''}<button type="button" class="btn sm ghost" data-act="copyt" data-id="${esc(t.id)}">${I.copy.replace('<svg', '<svg class="ico"')}复制</button><button type="button" class="btn sm ghost" data-act="delask" data-id="${esc(t.id)}">删除</button>`}</div></div>`; });
   h += `<div class="sec-title">家人生日</div><div class="glass card"><p class="small muted">生日、星座、八字五行三种选号方式用这里的生日。</p>${App.peopleHTML('none')}</div>`;
