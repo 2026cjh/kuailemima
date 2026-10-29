@@ -3,6 +3,9 @@ name: 编译安卓安装包
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'design/**'
+      - '**.md'
   workflow_dispatch:
 
 concurrency:
