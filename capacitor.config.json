@@ -1,0 +1,21 @@
+{
+  "appId": "com.cjh.hongbo",
+  "appName": "红蓝选号簿",
+  "webDir": "www",
+  "android": {
+    "adjustMarginsForEdgeToEdge": "force",
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "CapacitorHttp": { "enabled": true },
+    "LocalNotifications": { "smallIcon": "ic_stat_notify", "iconColor": "#0C8A6E" },
+    "BackgroundRunner": {
+      "label": "com.cjh.hongbo.check",
+      "src": "runner.js",
+      "event": "check",
+      "repeat": true,
+      "interval": 30,
+      "autoStart": true
+    }
+  }
+}

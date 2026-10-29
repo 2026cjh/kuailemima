@@ -1,0 +1,83 @@
+name: 编译安卓安装包
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 规则测试
+        run: node test/games.test.js && node test/ocr.test.js
+
+      - name: 准备网页资源并同步到安卓工程
+        run: |
+          node tools/prepare.js
+          npx cap sync android
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - uses: android-actions/setup-android@v3
+
+      - name: 签名证书（密码来自仓库加密 Secret：KEYSTORE_PASSWORD）
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::warning::还没有设置 KEYSTORE_PASSWORD，这次只编译测试版（debug）"
+            echo "SIGN=0" >> $GITHUB_ENV; exit 0
+          fi
+          if [ ! -f android/app/hongbo-release.jks ]; then
+            keytool -genkeypair -keystore android/app/hongbo-release.jks -alias hongbo -keyalg RSA -keysize 2048 -validity 36500 \
+              -storepass "$KEYSTORE_PASSWORD" -keypass "$KEYSTORE_PASSWORD" -dname "CN=Hongbo Xuanhao, O=Personal, C=CN" -storetype PKCS12
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -f android/app/hongbo-release.jks
+            git commit -m "生成签名证书（已用仓库 Secret 加密）"
+            git pull --rebase origin main && git push origin HEAD:main
+          fi
+          printf "storeFile=hongbo-release.jks\nstorePassword=%s\nkeyAlias=hongbo\nkeyPassword=%s\n" "$KEYSTORE_PASSWORD" "$KEYSTORE_PASSWORD" > android/keystore.properties
+          echo "SIGN=1" >> $GITHUB_ENV
+
+      - name: 编译
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          if [ "$SIGN" = "1" ]; then ./gradlew assembleRelease --no-daemon --stacktrace; else ./gradlew assembleDebug --no-daemon --stacktrace; fi
+
+      - name: 整理安装包
+        run: |
+          if [ "$SIGN" = "1" ]; then cp android/app/build/outputs/apk/release/app-release.apk "hongbo-1.0.${{ github.run_number }}.apk"
+          else cp android/app/build/outputs/apk/debug/app-debug.apk "hongbo-1.0.${{ github.run_number }}-debug.apk"; fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hongbo-apk
+          path: hongbo-*.apk
+
+      - name: 发布到 Releases
+        if: env.SIGN == '1'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: 红蓝选号簿 1.0.${{ github.run_number }}
+          body: 安卓安装包，下载后在手机上打开安装。
+          files: hongbo-1.0.${{ github.run_number }}.apk
