@@ -1,0 +1,5 @@
+www/data/*.json linguist-generated=true
+www/capacitor.js linguist-vendored=true
+www/runner.js linguist-generated=true
+*.woff2 binary
+*.png binary
