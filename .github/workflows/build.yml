@@ -70,13 +70,14 @@ jobs:
 
       - name: 整理安装包
         run: |
-          if [ "$SIGN" = "1" ]; then cp android/app/build/outputs/apk/release/app-release.apk "kuailemima-1.0.${{ github.run_number }}.apk"
+          # 另存一份固定名字的，下载链接 releases/latest/download/kuailemima.apk 永远指向最新版
+          if [ "$SIGN" = "1" ]; then cp android/app/build/outputs/apk/release/app-release.apk "kuailemima-1.0.${{ github.run_number }}.apk"; cp android/app/build/outputs/apk/release/app-release.apk kuailemima.apk
           else cp android/app/build/outputs/apk/debug/app-debug.apk "kuailemima-1.0.${{ github.run_number }}-debug.apk"; fi
 
       - uses: actions/upload-artifact@v4
         with:
           name: kuailemima-apk
-          path: kuailemima-*.apk
+          path: kuailemima-1.0.*.apk
 
       - name: 发布到 Releases
         if: env.SIGN == '1'
@@ -84,5 +85,7 @@ jobs:
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: 快乐密码 1.0.${{ github.run_number }}
-          body: 安卓安装包，下载后在手机上打开安装。
-          files: kuailemima-1.0.${{ github.run_number }}.apk
+          body: 安卓安装包，下载后在手机上打开安装。kuailemima.apk 和带版本号的是同一个文件。
+          files: |
+            kuailemima-1.0.${{ github.run_number }}.apk
+            kuailemima.apk

@@ -380,7 +380,7 @@ async function checkUpdate(manual) {
     const res = await Promise.race([fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } }),
       new Promise((_, rej) => setTimeout(() => rej(new Error('连接超时')), 15000))]);
     if (!res.ok) throw new Error('服务器返回 ' + res.status);
-    const j = await res.json(); const ver = String(j.tag_name || '').replace(/^v/, ''); const apk = (j.assets || []).find(a => /\.apk$/i.test(a.name));
+    const j = await res.json(); const ver = String(j.tag_name || '').replace(/^v/, ''); const apk = (j.assets || []).find(a => /^kuailemima-[\d.]+\.apk$/i.test(a.name)) || (j.assets || []).find(a => /\.apk$/i.test(a.name));
     S.settings.updAt = Date.now();
     S.settings.upd = apk && newer(ver, window.APP_VERSION) ? { ver, url: apk.browser_download_url, size: apk.size } : null;
     S.update = S.settings.upd; Store.set('settings', S.settings);
