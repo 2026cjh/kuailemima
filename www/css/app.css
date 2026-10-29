@@ -228,7 +228,7 @@ input:focus,select:focus{border-color:var(--accent)}
 .mline{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .spin{width:20px;height:20px;border-radius:50%;border:2px solid var(--hair);border-top-color:var(--accent);animation:sp 1s linear infinite;flex:none}
 @keyframes sp{to{transform:rotate(360deg)}}
-.rawtext{white-space:pre-wrap;font:12px/1.5 ui-monospace,Menlo,monospace;color:var(--ink-2);max-height:200px;overflow:auto}
+.rawtext{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-all;font:12px/1.5 ui-monospace,Menlo,monospace;color:var(--ink-2);max-height:320px;overflow:auto}
 
 /* 走势图 */
 .trend-wrap{overflow:auto;max-height:62vh;border-radius:16px;border:1px solid var(--edge);background:var(--glass-3);-webkit-overflow-scrolling:touch}

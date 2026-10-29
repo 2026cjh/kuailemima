@@ -38,11 +38,18 @@ const lastRaw = {};
 function withTimeout(p, ms) { return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('连接超时')), ms))]); }
 async function httpJson(url, headers, tag) {
   if (window.__MOCK__) return window.__MOCK__(url);
-  const res = await withTimeout(fetch(url, { headers }), 20000);
-  const text = await res.text();
-  if (tag) lastRaw[tag] = { url, status: res.status, text: text.slice(0, 600), at: Date.now() };
-  if (!res.ok) throw new Error('服务器返回 ' + res.status);
-  try { return JSON.parse(text); } catch (e) { throw new Error('返回的不是开奖数据'); }
+  const t0 = Date.now();
+  try {
+    const res = await withTimeout(fetch(url, { headers }), 20000);
+    const text = await res.text();
+    if (tag) lastRaw[tag] = { url, status: res.status, text: text.slice(0, 600), at: Date.now(), ms: Date.now() - t0 };
+    if (!res.ok) throw new Error('服务器返回 ' + res.status);
+    try { return JSON.parse(text); } catch (e) { throw new Error('返回的不是开奖数据'); }
+  } catch (e) {
+    // 超时、断网也记下来，数据诊断里能看到
+    if (tag && !(lastRaw[tag] && lastRaw[tag].at >= t0)) lastRaw[tag] = { url, status: '失败', text: String(e.message || e), at: Date.now(), ms: Date.now() - t0 };
+    throw e;
+  }
 }
 
 /* ---------- 内置历史（双色球 2003 年起，大乐透 2007 年起） ---------- */
@@ -54,7 +61,7 @@ function fromRow(g, r) {
 }
 
 const Data = {
-  draws: {}, meta: {}, busy: {},
+  draws: {}, meta: {}, busy: {}, filling: null,
   async init() {
     LT.ORDER.forEach(g => { this.draws[g] = []; });
     await Promise.all(['ssq', 'dlt'].map(async g => {
@@ -88,7 +95,8 @@ const Data = {
     opt = opt || {}; const G = LT.GAMES[g];
     if (this.busy[g]) return this.busy[g];
     const job = (async () => {
-      const full = opt.full || this.draws[g].length < 60;
+      // 平时只取最近 30 期，很快；opt.full 才往前补一两年历史（走势、冷热号要用）
+      const full = !!opt.full;
       let list = [], src = '官网', err = null;
       try {
         if (G.src.type === 'cwl') {
@@ -108,20 +116,34 @@ const Data = {
       if (err && CDN[g]) { try { list = cdnList(g, await httpJson(CDN[g], H_CDN, g + '-cdn')); src = '备用源'; err = list.length ? null : err; } catch (e2) {} }
       if (err) { this.meta[g] = Object.assign({}, this.meta[g], { ok: false, at: Date.now(), msg: String(err.message || err) }); Cache.set('meta', this.meta); return { ok: false, added: 0, msg: this.meta[g].msg }; }
       const added = this.merge(g, list); this.saveCache(g);
-      this.meta[g] = { ok: true, at: Date.now(), src, got: list.length, msg: '' }; Cache.set('meta', this.meta);
+      const old = this.meta[g] || {};
+      this.meta[g] = { ok: true, at: Date.now(), src, got: list.length, msg: '', filledAt: full ? Date.now() : old.filledAt }; Cache.set('meta', this.meta);
       return { ok: true, added };
     })();
     this.busy[g] = job; try { return await job; } finally { delete this.busy[g]; }
   },
-  async refreshDue(force) {
-    const todo = LT.ORDER.filter(g => { const m = this.meta[g]; return force || this.needsUpdate(g) || !m || (!m.ok && Date.now() - m.at > 10 * 60e3) || (m.ok && Date.now() - m.at > 12 * 3600e3 && this.draws[g].length < 60); });
-    const out = {};
-    // 福彩、体彩分两组并行，每组内依次请求，避免短时间请求过多
-    const cw = todo.filter(g => LT.GAMES[g].src.type === 'cwl'), tc = todo.filter(g => LT.GAMES[g].src.type === 'tc');
-    const run = async (list) => { for (const g of list) out[g] = await this.refresh(g); };
+  // 福彩、体彩分两组并行，每组内依次请求，避免短时间请求过多；每取完一个彩种就回调一次，首页逐个显示
+  async runGroups(list, fn) {
+    const cw = list.filter(g => LT.GAMES[g].src.type === 'cwl'), tc = list.filter(g => LT.GAMES[g].src.type === 'tc');
+    const run = async (l) => { for (const g of l) { try { await fn(g); } catch (e) {} } };
     await Promise.all([run(cw), run(tc)]);
+  },
+  async refreshDue(force, onEach) {
+    const todo = LT.ORDER.filter(g => { const m = this.meta[g]; return force || this.needsUpdate(g) || !m || (!m.ok && Date.now() - m.at > 10 * 60e3); });
+    const out = {};
+    await this.runGroups(todo, async g => { out[g] = await this.refresh(g); if (onEach) onEach(g); });
+    this.fillHistory(onEach);
     return out;
   },
+  // 历史不够 60 期的彩种，在后台慢慢补齐，不挡首页
+  fillHistory(onEach) {
+    if (this.filling) return this.filling;
+    const thin = LT.ORDER.filter(g => { const m = this.meta[g] || {}; return m.ok && this.draws[g].length < 60 && !(m.filledAt && Date.now() - m.filledAt < 12 * 3600e3); });
+    if (!thin.length) return null;
+    this.filling = this.runGroups(thin, async g => { await this.refresh(g, { full: true }); if (onEach) onEach(g); }).finally(() => { this.filling = null; });
+    return this.filling;
+  },
+  async refreshAll(onEach) { await this.runGroups(LT.ORDER, async g => { await this.refresh(g, { full: true }); if (onEach) onEach(g); }); },
   lastRaw
 };
 

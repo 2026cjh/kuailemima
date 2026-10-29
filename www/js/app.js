@@ -113,7 +113,7 @@ App.pages.home = () => {
       if (n) meta.push(`下期 <b>${md(n.date)}</b> 周${U.wk(n.date)} ${G.time}`);
       h += `<div class="draw-meta">${meta.map(x => `<span>${x}</span>`).join('')}</div>`;
     } else {
-      h += `<p class="small muted">${m && !m.ok ? '没取到开奖数据：' + esc(m.msg) + '。点右上角刷新重试。' : '正在获取开奖数据…'}</p>`;
+      h += `<p class="small muted">${Data.busy[g] || S.refreshing ? '正在获取开奖数据…' : m && !m.ok ? '没取到开奖数据：' + esc(m.msg) + '。点右上角刷新重试。' : '还没有开奖数据，点右上角刷新。'}</p>`;
     }
     h += `<div class="quick"><button type="button" data-act="detail" data-g="${g}" data-code="${d ? d.code : ''}" ${d ? '' : 'disabled'}>详情</button><button type="button" data-act="gotrend" data-g="${g}">走势</button>
       <button type="button" data-act="gopick" data-g="${g}">选号</button><button type="button" data-act="gocheck" data-g="${g}">对奖</button></div></article>`;
@@ -263,7 +263,7 @@ App.pages.settings = () => {
     return `<div class="list-item"><div class="grow"><b>${LT.GAMES[g].name}</b><small>${d ? `已收录到 ${LT.issueShort(g, d.code)} 期，共 ${Data.draws[g].length} 期` : '还没有数据'}${m.at ? ` · ${m.ok ? '更新' : '获取失败'} ${U.ago(m.at)}` : ''}${m.src === '备用源' ? ' · 备用源' : ''}</small>
       ${m.ok === false ? `<small style="color:var(--bad)">${esc(m.msg)}</small>` : ''}</div></div>`; }).join('')}
     <div class="row"><button type="button" class="btn sm" data-act="refetch">全部重新获取</button><button type="button" class="btn sm ghost" data-act="diag">${S.diag ? '收起' : '数据诊断'}</button></div>
-    ${S.diag ? `<div class="rawtext">${esc(Object.entries(HB.Data.lastRaw).map(([k, v]) => `[${k}] ${v.status} ${new Date(v.at).toLocaleTimeString()}\n${v.url}\n${v.text}`).join('\n\n') || '还没有请求记录。点"全部重新获取"后再看。')}</div>` : ''}</div>`;
+    ${S.diag ? `<div class="rawtext">${esc(Object.entries(HB.Data.lastRaw).map(([k, v]) => `[${k}] ${v.status} ${new Date(v.at).toLocaleTimeString()}${v.ms != null ? ' 用时' + (v.ms / 1000).toFixed(1) + '秒' : ''}\n${v.url}\n${v.text}`).join('\n\n') || '还没有请求记录。点"全部重新获取"后再看。')}</div>` : ''}</div>`;
   h += `<div class="sec-title">关于</div><div class="glass card"><p class="small">每一期开奖都是独立随机的，这里的任何选号方式中奖概率都和机选一样，图个乐趣。理性购彩，量力而行。</p>
     <p class="small muted">开奖数据来自中国福彩网（双色球、福彩3D、快乐8、七乐彩）和中国体彩网（大乐透、排列3、排列5、七星彩）。兑奖以官方公告为准。</p>
     <p class="tiny faint">快乐密码 ${esc(window.APP_VERSION || '')}</p></div>`;
@@ -307,7 +307,7 @@ App.acts.runnow = async () => {
   catch (e) { U.toast('检查失败：' + (e.message || e)); }
 };
 App.acts.theme = (a) => { S.settings.theme = a.dataset.v; App.saveSettings(); applyTheme(); };
-App.acts.refetch = async () => { U.toast('正在获取…'); await Promise.all(LT.ORDER.map(g => Data.refresh(g, { full: true }))); afterData(); U.toast('获取完成'); };
+App.acts.refetch = async () => { U.toast('正在获取…'); await Data.refreshAll(() => render()); afterData(); U.toast('获取完成'); };
 App.acts.diag = () => { S.diag = !S.diag; };
 function applyTheme() {
   const t = S.settings.theme; if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
@@ -320,7 +320,7 @@ function applyTheme() {
 /* ---------- 刷新 ---------- */
 async function refresh(force) {
   if (S.refreshing) return; S.refreshing = true; render();
-  try { await Data.refreshDue(force); } finally { S.refreshing = false; afterData(); }
+  try { await Data.refreshDue(force, () => render()); } finally { S.refreshing = false; afterData(); }
 }
 function afterData() { render(); syncRunner(); if (S.settings.winAlert !== false && unackedWins().length && !S.sub) App.showWins(); }
 App.acts.refresh = () => refresh(true);
