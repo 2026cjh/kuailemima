@@ -201,11 +201,19 @@ input:focus,select:focus{border-color:var(--accent)}
 .stat small{display:block;font-size:11.5px;color:var(--ink-3)}
 .stat b{font:650 19px/1.25 var(--f-num)}
 .ptable{width:100%;border-collapse:collapse;font-size:14px}
-.ptable th{font-size:12px;font-weight:600;color:var(--ink-3);text-align:left;padding:4px 6px 8px}
-.ptable td{padding:9px 6px;border-top:1px solid var(--hair)}
+.ptable th{font-size:12px;font-weight:600;color:var(--ink-3);text-align:left;padding:4px 6px 8px;white-space:nowrap}
+.ptable td{padding:10px 6px;border-top:1px solid var(--hair)}
 .ptable td.r,.ptable th.r{text-align:right}
-.ptable .amt{font-family:var(--f-num);font-weight:600}
-.ptable tr.top td:first-child{font-weight:700}
+.ptable td.c,.ptable th.c{text-align:center}
+.ptable td.lv{white-space:nowrap}
+.ptable td.lv small{font-size:11px;color:var(--ink-3);margin-left:3px}
+.ptable td.cond{font:500 13px/1.4 var(--f-num);color:var(--ink-2)}
+.ptable td.cond span{white-space:nowrap}
+.ptable td.num{white-space:nowrap;font-family:var(--f-num)}
+.ptable .amt{font-family:var(--f-num);font-weight:650;color:var(--red);white-space:nowrap}
+.ptable tbody tr:nth-child(odd){background:color-mix(in srgb,var(--ink) 3.5%,transparent)}
+.ptable tr.top td{font-weight:700}
+.ptable tr.top td.cond{color:var(--ink)}
 .navrow{display:flex;align-items:center;justify-content:space-between;gap:6px}
 .navrow .btn{white-space:nowrap;flex:none;padding-inline:8px}
 .navrow>div{min-width:0}

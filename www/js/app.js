@@ -157,16 +157,29 @@ App.pages.detail = () => {
     const names = grades ? LT.sortLevels([...new Set(grades.map(x => x.name.replace(/\(追加\)|（追加）/, '')))]) : Object.keys(cond);
     const pick = (n) => (grades || []).find(x => x.name === n), pickAdd = (n) => (grades || []).find(x => /追加/.test(x.name) && x.name.replace(/\(追加\)|（追加）/, '') === n);
     const ctx = LT.contextFor(g, d.code, Data.draws[g]);
-    h += `<div class="glass card"><div class="card-head"><h2>中奖情况</h2>${g === 'dlt' && ctx.boost ? '<span class="badge win">奖池超 8 亿加奖</span>' : ''}</div><table class="ptable"><thead><tr><th>奖级</th><th>条件</th><th class="r">注数</th><th class="r">每注奖金</th></tr></thead><tbody>`;
-    names.forEach((n, ix) => { const gr = pick(n), ga = pickAdd(n); let amt = gr && gr.amount ? gr.amount : LT.amountOf(g, n, ctx);
-      h += `<tr class="${ix === 0 ? 'top' : ''}"><td>${esc(n)}</td><td class="small muted">${esc(cond[n] || '')}</td><td class="r num">${gr && gr.count != null ? gr.count.toLocaleString() : '—'}</td><td class="r amt">${amt == null ? '浮动' : LT.fmtMoney(amt)}</td></tr>`;
-      if (ga) h += `<tr><td class="small">${esc(n)}追加</td><td></td><td class="r num">${ga.count != null ? ga.count.toLocaleString() : '—'}</td><td class="r amt">${ga.amount != null ? LT.fmtMoney(ga.amount) : '—'}</td></tr>`; });
+    const yuan = (v) => v == null ? '浮动' : Number.isInteger(v) ? v.toLocaleString('en-US') : v.toFixed(1);
+    const cnt = (v) => v == null ? '—' : v.toLocaleString('en-US');
+    h += `<div class="glass card"><div class="card-head"><h2>中奖情况</h2>${g === 'dlt' && ctx.boost ? '<span class="badge win">奖池超 8 亿加奖</span>' : ''}</div>
+      <table class="ptable"><thead><tr><th>奖级</th><th class="c">中奖条件</th><th class="r">中奖注数</th><th class="r">每注奖金(元)</th></tr></thead><tbody>`;
+    names.forEach((n, ix) => { const gr = pick(n), ga = pickAdd(n); const amt = gr && gr.amount ? gr.amount : LT.amountOf(g, n, ctx);
+      h += `<tr class="${ix < 2 ? 'top' : ''}"><td class="lv">${esc(n)}</td><td class="c cond">${String(cond[n] || '').split(/\s*\/\s*/).filter(Boolean).map((c, j, a) => `<span>${esc(c)}${j < a.length - 1 ? ',' : ''}</span>`).join('<wbr>')}</td><td class="r num">${cnt(gr && gr.count)}</td><td class="r amt">${yuan(amt)}</td></tr>`;
+      if (ga) h += `<tr class="add"><td class="lv">${esc(n)}<small>追加</small></td><td></td><td class="r num">${cnt(ga.count)}</td><td class="r amt">${ga.amount != null ? yuan(ga.amount) : '—'}</td></tr>`; });
     h += '</tbody></table>';
     if (!grades) h += '<p class="tiny faint">这一期的中奖注数没有保存，表里是规则奖金。</p>';
     else if (d.partial) h += '<p class="tiny faint">早期数据只保存了一、二等奖。</p>';
     h += '</div>';
   }
-  if (d.region) h += `<div class="glass card"><h2 style="font-size:16px">一等奖分布</h2><p class="region">${esc(d.region)}</p></div>`;
+  if (d.region) {
+    // 例：辽宁1注,黑龙江1注,福建1注,湖南1注,陕西1注,共5注。
+    const rows = []; let total = null;
+    String(d.region).split(/[,，、;；。\s]+/).forEach(part => { const m = /^(.+?)(\d+)注/.exec(part); if (!m) return;
+      if (/^共/.test(m[1])) total = +m[2]; else rows.push([m[1].replace(/^(其中|一等奖)/, ''), +m[2]]); });
+    const sum = total != null ? total : rows.reduce((a, r) => a + r[1], 0);
+    h += `<div class="glass card"><div class="card-head"><h2>一等奖中奖地区</h2>${rows.length ? `<span class="small muted">共 ${sum} 注</span>` : ''}</div>`;
+    if (rows.length) h += `<table class="ptable region-t"><thead><tr><th>省市</th><th class="r">注数</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r[0])}</td><td class="r num">${r[1]}</td></tr>`).join('')}</tbody></table>`;
+    else h += `<p class="region">${esc(d.region)}</p>`;
+    h += '</div>';
+  }
   const mine = S.tickets.filter(t => t.game === g && t.issue === d.code);
   if (mine.length) h += `<div class="sec-title">我这一期的票</div>` + mine.map(t => `<div class="glass card"><div class="tk-head"><span class="badge ${t.kind === 'sim' ? 'sim' : 'real'}">${t.kind === 'sim' ? '模拟' : '实票'}</span><span class="grow small muted">${esc(t.method || '')}</span>${App.statusBadge(t)}</div>${App.ticketLines(t, d)}</div>`).join('');
   return h + '</div>';
